@@ -1,4 +1,4 @@
 {
-  "_": "Webbadressen till Apps Script-databasen. Se apps-script/Middagsbanken.gs för hur du får fram den.",
-  "api": ""
+  "_": "Webbadressen till Apps Script-databasen. Se apps-script/Middagsbanken.gs för hur den tas fram.",
+  "api": "https://script.google.com/macros/s/AKfycbzfaFHbhD026WfSTjenezc6SgEapSut2okfmzn8M1bVHvLUhHEJG28aLYBaT-XyMCP7/exec"
 }
