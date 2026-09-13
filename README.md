@@ -21,7 +21,7 @@ som besöker sidan behöver inget konto.
 Firestore skickar ändringar vidare till alla öppna sidor direkt, så det någon annan gör dyker
 upp med en gång utan omladdning. En skrivning tar omkring 200 ms.
 
-Uppgifterna i `data/config.json` är avsedda att vara publika — de pekar bara ut projektet.
+Projekt-id:t i `data/config.json` är avsett att vara publikt — det pekar bara ut projektet.
 Vad som får läsas och skrivas bestäms av `firestore.rules`.
 
 ## Innehåll
@@ -34,18 +34,21 @@ Vad som får läsas och skrivas bestäms av `firestore.rules`.
 | `firestore.rules` | Säkerhetsreglerna: vilka samlingar som finns och hur ett giltigt dokument ser ut. |
 | `firebase.json` | Pekar ut reglerna, och portar för den lokala emulatorn. |
 | `scripts/seed_firestore.py` | Lägger in de 76 middagarna i en ny databas. Körs en gång. |
-| `data/config.json` | Firebase-projektets publika uppgifter. |
+| `data/config.json` | Firebase-projektets id. Inget mer behövs. |
 | `data/middagar.json` | De 76 middagarna från matplaneringskalkylbladet. Startdata och referenskopia. |
 | `.github/workflows/pages.yml` | Bygger och publicerar till GitHub Pages vid varje push |
 
 ## Sätta upp databasen (engångsjobb)
 
-1. **Skapa databasen.** Firebase-konsolen → projektet `fabfood` → Build → Firestore Database
-   → Create database → *production mode* → region `eur3` eller `europe-north1`.
-2. **Lägg in reglerna.** Fliken Rules → klistra in hela `firestore.rules` → Publish.
-3. **Registrera webbappen.** Project settings → Your apps → `</>` → registrera → kopiera
-   `apiKey`, `authDomain`, `projectId` och `appId` till `data/config.json`.
-4. **Fyll på med middagarna.** `python3 scripts/seed_firestore.py`
+1. **Skapa databasen.** Firebase-konsolen → projektet `fabfood` → vänsterpanelen
+   **Databases & Storage → Firestore** → **Create database** → välj plats (`eur3` eller
+   `europe-north1`) → **Test mode** → **Create**.
+2. **Lägg in reglerna.** Fliken **Rules** → klistra in hela `firestore.rules` → **Publish**.
+   Viktigt: test mode slutar gälla efter 30 dagar, reglerna i filen gäller tills vidare.
+3. **Fyll på med middagarna.** `python3 scripts/seed_firestore.py`
+
+Ingen API-nyckel och ingen app-registrering behövs. Firestore når man med enbart projektets
+id, så `data/config.json` innehåller bara det.
 
 GitHub Pages slås på under Settings → Pages → Source: **GitHub Actions**. Workflowen sköter
 resten vid varje push.

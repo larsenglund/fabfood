@@ -1,9 +1,6 @@
 {
-  "_": "Firebase-projektets uppgifter. De är avsedda att vara publika — vad som får läsas och skrivas styrs av firestore.rules.",
+  "_": "Firebase-projektet. Bara projectId behövs för Firestore — ingen API-nyckel och ingen app-registrering. Vad som får läsas och skrivas styrs av firestore.rules.",
   "firebase": {
-    "apiKey": "",
-    "authDomain": "",
-    "projectId": "",
-    "appId": ""
+    "projectId": "fabfood"
   }
 }
