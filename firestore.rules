@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Sidan har ingen inloggning: den som kan öppna den får läsa och skriva.
+// Reglerna begränsar därför inte VEM, utan VAD — bara de två samlingarna
+// och bara dokument som faktiskt ser ut som en middag eller en vecka.
+// Det stoppar inte någon som är ute efter att förstöra, men det hindrar
+// att databasen används till något helt annat.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function giltigMiddag(d) {
+      return d.keys().hasOnly(['namn', 'tid', 'veg', 'lank', 'anteckning', 'kalla', 'taggar', 'nr', 'skapad'])
+        && d.namn is string && d.namn.size() > 0 && d.namn.size() <= 200
+        && (d.tid == null || d.tid is number)
+        && d.veg is bool
+        && d.lank is string && d.lank.size() <= 500
+        && d.anteckning is string && d.anteckning.size() <= 1000
+        && d.kalla is string && d.kalla.size() <= 200
+        && d.taggar is list && d.taggar.size() <= 10
+        && (d.nr == null || d.nr is number)
+        && d.skapad is string && d.skapad.size() <= 40;
+    }
+
+    function giltigVecka(d) {
+      return d.keys().hasOnly(['vecka', 'dagar', 'uppdaterad'])
+        && d.vecka is string && d.vecka.size() <= 12
+        && d.dagar is map && d.dagar.size() <= 7
+        && d.uppdaterad is string && d.uppdaterad.size() <= 40;
+    }
+
+    // Ett middagsförslag
+    match /middagar/{id} {
+      allow read, delete: if true;
+      allow create, update: if giltigMiddag(request.resource.data);
+    }
+
+    // En veckas matsedel. Dokument-id är veckan, t.ex. 2026-v38.
+    match /veckor/{vecka} {
+      allow read, delete: if true;
+      allow create, update: if giltigVecka(request.resource.data);
+    }
+
+    // Allt annat är stängt (det är också standard utan regel).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

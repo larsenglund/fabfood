@@ -4,24 +4,25 @@ Webbsida för att bläddra bland middagsförslag, sätta ihop veckans matsedel o
 middagar. Alla som öppnar sidan delar samma databas.
 
 **Sidan:** https://larsenglund.github.io/fabfood/
-**Databasen:** kalkylarket [Middagsbanken – databas](https://docs.google.com/spreadsheets/d/1pXNF4ee0qg4XlfP6owbHUOEhPAhTh_Aj-ABdiqba_BE/edit) i Google Drive
+**Databasen:** Firestore i Firebase-projektet `fabfood`
 
 ## Så hänger det ihop
 
 Sidan är en enda statisk HTML-fil på GitHub Pages. Den har ingen egen server — i stället
-pratar den med ett Apps Script som ligger på kalkylarket och som fungerar som databas. Det
-betyder att middagarna och veckomatsedlarna ligger i kalkylarket, och att du kan redigera dem
-antingen på sidan eller direkt i kalkylen. Allt är gratis och kräver inget konto av den som
-besöker sidan.
+pratar den direkt med Firestore, som sköter både lagringen och utskicket av ändringar. Den
+som besöker sidan behöver inget konto.
 
 ```
-  webbläsare  ──fetch──▶  Apps Script (/exec)  ──▶  Google Sheets
- (GitHub Pages)                                     Middagar
-                                                    Veckomatsedel
+  webbläsare  ◀──realtid──▶  Firestore
+ (GitHub Pages)              middagar/
+                             veckor/
 ```
 
-Sidan hämtar om databasen var 20:e sekund och när fliken får fokus igen, så andras ändringar
-dyker upp av sig själva.
+Firestore skickar ändringar vidare till alla öppna sidor direkt, så det någon annan gör dyker
+upp med en gång utan omladdning. En skrivning tar omkring 200 ms.
+
+Uppgifterna i `data/config.json` är avsedda att vara publika — de pekar bara ut projektet.
+Vad som får läsas och skrivas bestäms av `firestore.rules`.
 
 ## Innehåll
 
@@ -30,22 +31,34 @@ dyker upp av sig själva.
 | `src/app.html` | Sidan — markup, stil och logik i en fil, inga beroenden utöver Google Fonts. Källan att redigera. |
 | `index.html` | Byggd av `build.py`. Det är den här filen GitHub Pages serverar. |
 | `build.py` | Bygger `index.html`. Kör `python3 build.py` efter varje ändring i `src/app.html`. |
-| `apps-script/Middagsbanken.gs` | Databasen: Apps Script som ger kalkylarket ett litet JSON-API. Installationsanvisning finns högst upp i filen. |
-| `data/config.json` | Webbadressen till Apps Script-distributionen. |
-| `data/middagar.json` | De 76 middagarna från matplaneringskalkylbladet, som de såg ut när databasen sattes upp. Referenskopia. |
+| `firestore.rules` | Säkerhetsreglerna: vilka samlingar som finns och hur ett giltigt dokument ser ut. |
+| `firebase.json` | Pekar ut reglerna, och portar för den lokala emulatorn. |
+| `scripts/seed_firestore.py` | Lägger in de 76 middagarna i en ny databas. Körs en gång. |
+| `data/config.json` | Firebase-projektets publika uppgifter. |
+| `data/middagar.json` | De 76 middagarna från matplaneringskalkylbladet. Startdata och referenskopia. |
 | `.github/workflows/pages.yml` | Bygger och publicerar till GitHub Pages vid varje push |
 
-## Komma igång (engångsjobb)
+## Sätta upp databasen (engångsjobb)
 
-1. **Koppla in databasen.** Öppna `apps-script/Middagsbanken.gs` och följ anvisningen högst
-   upp: klistra in skriptet i kalkylarkets Apps Script, distribuera som webbapp med åtkomst
-   `Alla`, och kopiera adressen som slutar på `/exec`.
-2. **Lägg in adressen.** Skriv in den som `api` i `data/config.json`, committa och pusha.
-3. **Slå på GitHub Pages.** Settings → Pages → Source: **GitHub Actions**. Workflowen sköter
-   resten vid varje push.
+1. **Skapa databasen.** Firebase-konsolen → projektet `fabfood` → Build → Firestore Database
+   → Create database → *production mode* → region `eur3` eller `europe-north1`.
+2. **Lägg in reglerna.** Fliken Rules → klistra in hela `firestore.rules` → Publish.
+3. **Registrera webbappen.** Project settings → Your apps → `</>` → registrera → kopiera
+   `apiKey`, `authDomain`, `projectId` och `appId` till `data/config.json`.
+4. **Fyll på med middagarna.** `python3 scripts/seed_firestore.py`
 
-Adressen till Apps Script går också att skicka med i länken för test, utan att röra
-`config.json`: `…/fabfood/?api=https://script.google.com/…/exec`.
+GitHub Pages slås på under Settings → Pages → Source: **GitHub Actions**. Workflowen sköter
+resten vid varje push.
+
+## Utveckla mot en lokal databas
+
+```
+npx firebase emulators:start --only firestore --project fabfood
+python3 scripts/seed_firestore.py --emulator 127.0.0.1:8080
+```
+
+Öppna sedan sidan med `?emulator=127.0.0.1:8080` så går den mot emulatorn i stället för mot
+det riktiga projektet.
 
 ## Använda sidan
 
@@ -63,29 +76,40 @@ ett kort öppnar samma formulär för att redigera eller ta bort.
 
 ## Datamodell
 
-Kalkylarket har två blad. Skapas automatiskt av skriptet om de saknas.
+Två samlingar.
 
-**Middagar** — en rad per middag:
+**`middagar/{id}`** — ett middagsförslag:
 
-| id | namn | tid | veg | lank | anteckning | kalla | taggar | nr | skapad |
-|----|------|-----|-----|------|------------|-------|--------|----|--------|
+| fält | typ | |
+|------|-----|--|
+| `namn` | sträng | krävs, 1–200 tecken |
+| `tid` | tal eller null | minuter |
+| `veg` | boolesk | |
+| `lank` | sträng | receptlänk, kan vara tom |
+| `anteckning` | sträng | max 1000 tecken |
+| `kalla` | sträng | var förslaget kommer ifrån |
+| `taggar` | lista | max 10 |
+| `nr` | tal eller null | ordningsnummer i det ursprungliga kalkylbladet |
+| `skapad` | sträng | ISO-tid |
 
-`veg` är `ja` eller tomt, `taggar` är kommaseparerade, `tid` är minuter.
+**`veckor/{år}-v{vecka}`** — en veckas matsedel, t.ex. `veckor/2026-v38`:
 
-**Veckomatsedel** — en rad per vecka:
+| fält | typ | |
+|------|-----|--|
+| `vecka` | sträng | samma som dokument-id |
+| `dagar` | map | nycklarna `"0"`–`"6"` (måndag–söndag) med id från `middagar` |
+| `uppdaterad` | sträng | ISO-tid |
 
-| vecka | mandag | tisdag | onsdag | torsdag | fredag | lordag | sondag | uppdaterad |
-|-------|--------|--------|--------|---------|--------|--------|--------|------------|
-
-`vecka` är på formen `2026-v38` (ISO-år och ISO-veckonummer) och dagkolumnerna innehåller
-id:n från Middagar-bladet. En tom vecka tas bort helt.
+En tom vecka tas bort helt.
 
 ## Att känna till
 
-Apps Script-adressen ligger i en publik fil på en publik sida. Den som har adressen kan skriva
-till kalkylarket. För en middagslista i en familj är det rimligt, men det är värt att veta.
-Behövs ett skydd är det enklaste att lägga till en delad kod som skickas med varje anrop och
-kontrolleras i skriptet.
+Sidan har ingen inloggning, så reglerna begränsar inte vem som skriver utan vad som skrivs:
+bara de två samlingarna, och bara dokument som ser ut som en middag eller en vecka. Det
+hindrar att databasen används till något annat, men den som hittar sidan kan ändra
+middagslistan. För en familjs middagar är det rimligt. Behövs mer går det att slå på anonym
+inloggning i Firebase och kräva `request.auth != null` i reglerna — det stoppar automatiserat
+klotter utan att någon behöver logga in.
 
 ## Uppdatera sidan
 

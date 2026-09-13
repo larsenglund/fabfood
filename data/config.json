@@ -1,4 +1,9 @@
 {
-  "_": "Webbadressen till Apps Script-databasen. Se apps-script/Middagsbanken.gs för hur den tas fram.",
-  "api": "https://script.google.com/macros/s/AKfycbzfaFHbhD026WfSTjenezc6SgEapSut2okfmzn8M1bVHvLUhHEJG28aLYBaT-XyMCP7/exec"
+  "_": "Firebase-projektets uppgifter. De är avsedda att vara publika — vad som får läsas och skrivas styrs av firestore.rules.",
+  "firebase": {
+    "apiKey": "",
+    "authDomain": "",
+    "projectId": "",
+    "appId": ""
+  }
 }

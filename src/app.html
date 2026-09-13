@@ -291,7 +291,7 @@
 
   var DAGAR = ["Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag","Söndag"];
   var state = {
-    store: null, delad: false, meals: null, plan: {}, weekStart: mondayOf(new Date()),
+    store: null, meals: null, plan: {}, weekStart: mondayOf(new Date()),
     armed: null, q: "", filter: "alla", sort: "namn", tags: []
   };
   var unsubPlan = null;
@@ -355,83 +355,85 @@
   function keyOf(monday) { var w = isoWeek(monday); return w.ar + "-v" + String(w.vecka).padStart(2, "0"); }
   var fmtDay = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" });
 
-  /* ---------- lagring: Google Sheets via Apps Script ---------- */
+  /* ---------- lagring: Firebase Firestore ---------- */
   /**
-   * En delad databas för alla som använder sidan. Läsningar och skrivningar
-   * går till ett Apps Script som ligger på kalkylarket "Middagsbanken –
-   * databas". Sidan hämtar om med jämna mellanrum så att andras ändringar
-   * dyker upp av sig själva.
+   * En delad databas för alla som använder sidan. Firestore skickar
+   * ändringar vidare till alla öppna sidor direkt, så det behövs ingen
+   * pollning: det någon annan gör dyker upp med en gång.
+   *
+   * Nyckeln i data/config.json är avsedd att vara publik — den pekar bara
+   * ut projektet. Vad som faktiskt får läsas och skrivas bestäms av
+   * reglerna i firestore.rules.
    */
-  function sheetStore(api) {
-    var cache = { middagar: [], veckor: {} };
-    var mealCb = null, planCb = null, planKey = null, laddad = false, tappad = false;
+  var SDK = "https://www.gstatic.com/firebasejs/12.4.0/";
+
+  function startaFirestore(cfg) {
+    return Promise.all([
+      import(SDK + "firebase-app.js"),
+      import(SDK + "firebase-firestore.js")
+    ]).then(function (moduler) {
+      var app = moduler[0], F = moduler[1];
+      var db = F.getFirestore(app.initializeApp(cfg));
+
+      // ?emulator=host:port kopplar mot en lokal Firestore vid test
+      var emu = new URLSearchParams(location.search).get("emulator");
+      if (emu) {
+        var delar = emu.split(":");
+        F.connectFirestoreEmulator(db, delar[0], parseInt(delar[1], 10));
+      }
+      return firestoreStore(F, db);
+    });
+  }
+
+  function firestoreStore(F, db) {
+    var meals = [], weeks = {}, harMiddagar = false;
+    var mealCb = null, planCb = null, planKey = null, tappad = false;
 
     function sand() {
-      if (!laddad) return;
-      if (mealCb) mealCb(cache.middagar.map(function (m) { return normalisera(m.id, m); }));
-      if (planCb && planKey) planCb(Object.assign({}, cache.veckor[planKey] || {}));
+      if (!harMiddagar) return;
+      if (mealCb) mealCb(meals.map(function (m) { return normalisera(m.id, m); }));
+      if (planCb && planKey) planCb(Object.assign({}, weeks[planKey] || {}));
     }
 
-    function tolka(r) {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json().then(function (d) {
-        if (!d || !d.ok) throw new Error((d && d.fel) || "Databasen svarade med ett fel");
-        if (d.middagar) {
-          cache.middagar = d.middagar;
-          cache.veckor = d.veckor || {};
-          laddad = true;
-          sand();
-        }
-        return d;
+    function tappadeKontakten() {
+      if (tappad) return;
+      tappad = true;
+      toast("Tappade kontakten med databasen. Ladda om sidan.");
+    }
+
+    F.onSnapshot(F.collection(db, "middagar"), function (snap) {
+      meals = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      harMiddagar = true;
+      sand();
+    }, tappadeKontakten);
+
+    F.onSnapshot(F.collection(db, "veckor"), function (snap) {
+      weeks = {};
+      snap.docs.forEach(function (d) {
+        var v = d.data() || {};
+        weeks[d.id] = (v.dagar && typeof v.dagar === "object") ? v.dagar : {};
       });
-    }
-
-    function hamta() {
-      return fetch(api + (api.indexOf("?") === -1 ? "?" : "&") + "t=" + Date.now())
-        .then(tolka)
-        .then(function (d) {
-          if (tappad) { tappad = false; toast("Kontakten med databasen är tillbaka."); }
-          return d;
-        }, function (e) {
-          if (!tappad && laddad) { tappad = true; toast("Når inte databasen just nu."); }
-          throw e;
-        });
-    }
-
-    /**
-     * POST med Content-Type text/plain är avsiktligt: då räknas anropet som
-     * en enkel förfrågan och webbläsaren hoppar över OPTIONS, som Apps
-     * Script inte kan svara på. Kroppen är JSON ändå.
-     */
-    function skicka(nyttel) {
-      return fetch(api, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(nyttel)
-      }).then(tolka);
-    }
-
-    var tyst = function () {};
-    setInterval(function () { if (!document.hidden) hamta().catch(tyst); }, 20000);
-    document.addEventListener("visibilitychange", function () { if (!document.hidden) hamta().catch(tyst); });
+      sand();
+    }, tappadeKontakten);
 
     return {
-      delad: true,
-      start: hamta,
       onMeals: function (cb) { mealCb = cb; sand(); return function () { mealCb = null; }; },
       onPlan: function (key, cb) {
         planCb = cb; planKey = key;
-        cb(Object.assign({}, cache.veckor[key] || {}));
+        cb(Object.assign({}, weeks[key] || {}));
         return function () { planCb = null; planKey = null; };
       },
-      getPlan: function (key) { return Promise.resolve(Object.assign({}, cache.veckor[key] || {})); },
+      getPlan: function (key) { return Promise.resolve(Object.assign({}, weeks[key] || {})); },
       savePlan: function (key, dagar) {
-        cache.veckor[key] = dagar;
-        return skicka({ action: "sparaVecka", vecka: key, dagar: dagar }).then(tyst);
+        var ref = F.doc(db, "veckor", key);
+        if (!Object.keys(dagar).length) return F.deleteDoc(ref);
+        return F.setDoc(ref, { vecka: key, dagar: dagar, uppdaterad: new Date().toISOString() });
       },
-      addMeal: function (body) { return skicka({ action: "nyMiddag", middag: body }).then(function (d) { return d.id; }); },
-      setMeal: function (id, body) { return skicka({ action: "andraMiddag", id: id, middag: body }).then(tyst); },
-      delMeal: function (id) { return skicka({ action: "taBortMiddag", id: id }).then(tyst); }
+      addMeal: function (body) {
+        return F.addDoc(F.collection(db, "middagar"), body).then(function (ref) { return ref.id; });
+      },
+      setMeal: function (id, body) { return F.setDoc(F.doc(db, "middagar", id), body); },
+      delMeal: function (id) { return F.deleteDoc(F.doc(db, "middagar", id)); }
     };
   }
 
@@ -794,7 +796,6 @@
 
   function anvand(store) {
     state.store = store;
-    state.delad = store.delad;
     $("mode-note").textContent = "Delad databas – alla som öppnar sidan ser och ändrar samma matsedel";
     store.onMeals(function (meals) {
       state.meals = meals;
@@ -815,25 +816,18 @@
     renderCards(); renderWeek();
   }
 
-  /** Adressen till Apps Script-databasen. ?api=… går före, för test. */
-  function konfig() {
-    var fran = new URLSearchParams(location.search).get("api");
-    if (fran) return Promise.resolve({ api: fran });
-    return fetch("data/config.json", { cache: "no-cache" })
-      .then(function (r) { return r.ok ? r.json() : {}; })
-      .catch(function () { return {}; });
-  }
-
-  konfig().then(function (cfg) {
-    var api = ((cfg && cfg.api) || "").trim();
-    if (!api) {
-      ingenData("Databasen är inte inkopplad än. Följ instruktionerna högst upp i apps-script/Middagsbanken.gs och lägg webbadressen i data/config.json.");
-      return null;
-    }
-    anvand(sheetStore(api));
-    return state.store.start();
-  }).catch(function () {
-    ingenData("Når inte databasen. Kontrollera adressen i data/config.json och ladda om sidan.");
-  });
+  fetch("data/config.json", { cache: "no-cache" })
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (cfg) {
+      var fb = cfg && cfg.firebase;
+      if (!fb || !fb.projectId) {
+        ingenData("Databasen är inte inkopplad än. Följ anvisningen i README.md och lägg projektets uppgifter i data/config.json.");
+        return null;
+      }
+      return startaFirestore(fb).then(anvand);
+    })
+    .catch(function () {
+      ingenData("Når inte databasen. Kontrollera uppgifterna i data/config.json och ladda om sidan.");
+    });
 })();
 </script>
