@@ -1,0 +1,727 @@
+<title>Middagsbanken</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Karla:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --ground:#F2F4EF; --surface:#FFFFFF; --sunken:#E7EBE2;
+    --ink:#16211B; --muted:#5E6E64; --faint:#8A968E;
+    --line:#D7DDD2; --line-soft:#E4E9DE;
+    --accent:#1D5B43; --accent-ink:#FFFFFF; --accent-soft:#DDEBE2; --accent-line:#B9D4C5;
+    --amber:#B5790F; --amber-soft:#F6E9CC;
+    --danger:#A33726;
+    --shadow:0 1px 2px rgba(22,33,27,.06), 0 6px 18px -12px rgba(22,33,27,.22);
+    --r:10px;
+    --font-display:"Fraunces","Iowan Old Style",Georgia,serif;
+    --font-body:"Karla","Helvetica Neue",Arial,sans-serif;
+    --font-mono:"DM Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  :root:not([data-theme="light"]) { color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1412; --surface:#18201C; --sunken:#131A16;
+      --ink:#E7ECE6; --muted:#9AA89E; --faint:#7A877E;
+      --line:#29342D; --line-soft:#212B25;
+      --accent:#6BC49D; --accent-ink:#0F1412; --accent-soft:#1B2C24; --accent-line:#2C463A;
+      --amber:#E0AC5A; --amber-soft:#2E2517;
+      --danger:#E08373;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 22px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1412; --surface:#18201C; --sunken:#131A16;
+    --ink:#E7ECE6; --muted:#9AA89E; --faint:#7A877E;
+    --line:#29342D; --line-soft:#212B25;
+    --accent:#6BC49D; --accent-ink:#0F1412; --accent-soft:#1B2C24; --accent-line:#2C463A;
+    --amber:#E0AC5A; --amber-soft:#2E2517;
+    --danger:#E08373;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 22px -14px rgba(0,0,0,.7);
+  }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.5; }
+  * { box-sizing:border-box; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+
+  .wrap { max-width:1180px; margin:0 auto; padding-inline:18px; padding-block:22px 64px; }
+
+  /* ---- topbar ---- */
+  .topbar { display:flex; flex-wrap:wrap; gap:16px 24px; align-items:flex-end; justify-content:space-between;
+            padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .brand h1 { font-family:var(--font-display); font-size:32px; font-weight:600; letter-spacing:-.01em; margin:0; line-height:1.1; }
+  .brand p { margin:4px 0 0; color:var(--muted); font-size:13.5px; }
+  .brand .count { font-family:var(--font-mono); font-size:12.5px; }
+
+  .weeknav { display:flex; align-items:center; gap:8px; }
+  .weeknav .label { text-align:center; min-width:126px; }
+  .weeknav .wk { font-family:var(--font-mono); font-size:17px; font-weight:500; display:block; letter-spacing:-.02em; }
+  .weeknav .span { font-size:12px; color:var(--muted); display:block; font-variant-numeric:tabular-nums; }
+
+  /* ---- buttons ---- */
+  button { font:inherit; color:inherit; cursor:pointer; background:none; border:none; }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border:1px solid var(--line);
+         background:var(--surface); border-radius:var(--r); font-size:13.5px; font-weight:500;
+         transition:border-color .12s, background .12s; white-space:nowrap; }
+  .btn:hover { border-color:var(--accent-line); }
+  .btn-primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
+  .btn-primary:hover { filter:brightness(1.08); border-color:var(--accent); }
+  .btn-quiet { border-color:transparent; background:transparent; color:var(--muted); padding:5px 8px; }
+  .btn-quiet:hover { color:var(--ink); background:var(--sunken); }
+  .btn-icon { width:30px; height:30px; padding:0; justify-content:center; border-radius:8px; }
+  .btn-danger { color:var(--danger); border-color:var(--line); }
+  .btn[disabled] { opacity:.45; cursor:not-allowed; }
+
+  /* ---- layout ---- */
+  .layout { display:grid; grid-template-columns:minmax(300px,400px) 1fr; gap:30px; align-items:start; margin-top:24px; }
+  @media (max-width:940px) { .layout { grid-template-columns:1fr; gap:34px; } }
+
+  .sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .sec-head h2 { font-family:var(--font-display); font-size:19px; font-weight:600; margin:0; }
+  .sec-head .hint { font-size:12.5px; color:var(--faint); }
+
+  /* ---- week ---- */
+  .week-tools { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .days { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .day { display:grid; grid-template-columns:74px 1fr; gap:12px; align-items:center;
+         background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--r); padding:10px 12px;
+         transition:border-color .12s, background .12s; }
+  .day.is-empty { background:var(--sunken); border-style:dashed; border-color:var(--line); }
+  .day.is-today { border-left:3px solid var(--amber); padding-left:9px; }
+  .day.is-armed { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .day-name { font-family:var(--font-display); font-size:14.5px; font-weight:600; line-height:1.25; }
+  .day-date { font-family:var(--font-mono); font-size:11px; color:var(--faint); display:block; }
+  .day.is-today .day-date { color:var(--amber); }
+  .slot { min-width:0; display:flex; align-items:center; gap:8px; justify-content:space-between; }
+  .slot-main { min-width:0; }
+  .slot-name { font-weight:600; font-size:14.5px; overflow-wrap:anywhere; }
+  .slot-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .slot-acts { display:flex; gap:2px; flex:0 0 auto; }
+  .slot-empty { width:100%; text-align:left; color:var(--muted); font-size:13.5px; padding:3px 0; }
+  .slot-empty:hover { color:var(--accent); }
+  .slot-gone { color:var(--danger); font-size:13px; font-style:italic; }
+
+  /* ---- library ---- */
+  .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+  .search { flex:1 1 190px; min-width:0; display:flex; align-items:center; gap:7px; background:var(--surface);
+            border:1px solid var(--line); border-radius:var(--r); padding:0 10px; }
+  .search input { flex:1; min-width:0; border:none; background:none; font:inherit; color:inherit; padding:8px 0; }
+  .search input:focus { outline:none; }
+  .search:focus-within { border-color:var(--accent); }
+  select.sel { font:inherit; font-size:13.5px; color:inherit; background:var(--surface); border:1px solid var(--line);
+               border-radius:var(--r); padding:7px 8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .chip { font-size:12.5px; padding:4px 11px; border-radius:999px; border:1px solid var(--line);
+          background:var(--surface); color:var(--muted); }
+  .chip:hover { border-color:var(--accent-line); color:var(--ink); }
+  .chip[aria-pressed="true"] { background:var(--accent-soft); border-color:var(--accent-line); color:var(--ink); font-weight:600; }
+
+  .arm-bar { display:none; align-items:center; gap:10px; flex-wrap:wrap; background:var(--accent-soft);
+             border:1px solid var(--accent-line); border-radius:var(--r); padding:8px 12px; margin-bottom:12px; font-size:13.5px; }
+  .arm-bar.on { display:flex; }
+  .arm-bar strong { font-weight:600; }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:10px; align-items:start; }
+  .card { background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--r); padding:11px 12px;
+          display:flex; flex-direction:column; gap:7px; transition:border-color .12s, transform .12s; }
+  .card:hover { border-color:var(--accent-line); }
+  .picking .card { cursor:pointer; }
+  .picking .card:hover { border-color:var(--accent); transform:translateY(-1px); }
+  .card.is-planned { border-color:var(--accent-line); background:linear-gradient(var(--accent-soft),var(--accent-soft)) no-repeat left/3px 100%, var(--surface); }
+  .card h3 { margin:0; font-family:var(--font-display); font-size:15px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
+  .card .note { font-size:12.5px; color:var(--muted); margin:0; }
+  .card-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding-top:2px; }
+  .card-foot { display:flex; gap:8px; align-items:center; justify-content:flex-end; border-top:1px solid var(--line-soft); padding-top:8px; }
+  .card-foot .recipe { margin-right:auto; }
+
+  .tag { font-size:11px; padding:2px 7px; border-radius:999px; background:var(--sunken); color:var(--muted); white-space:nowrap; }
+  .tag-veg { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .tag-time { font-family:var(--font-mono); font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .tag-planned { background:var(--amber-soft); color:var(--amber); font-weight:600; }
+  a.recipe { color:var(--accent); font-size:12.5px; text-decoration:none; border-bottom:1px solid var(--accent-line); }
+  a.recipe:hover { border-bottom-color:var(--accent); }
+
+  .empty-state { grid-column:1/-1; padding:30px 4px; color:var(--muted); font-size:14px; text-align:center; }
+  .skeleton { height:88px; border-radius:var(--r); background:var(--sunken); border:1px solid var(--line-soft); }
+  .notice { background:var(--amber-soft); border:1px solid var(--amber); border-radius:var(--r); padding:11px 14px;
+            font-size:13.5px; margin-bottom:16px; }
+
+  /* ---- dialogs ---- */
+  dialog { border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink);
+           padding:0; max-width:min(460px,calc(100vw - 32px)); width:100%; box-shadow:var(--shadow); }
+  dialog::backdrop { background:rgba(12,20,16,.45); }
+  .dlg-head { padding:16px 18px 0; }
+  .dlg-head h3 { font-family:var(--font-display); font-size:18px; font-weight:600; margin:0; }
+  .dlg-head p { margin:4px 0 0; font-size:13px; color:var(--muted); }
+  .dlg-body { padding:14px 18px; display:flex; flex-direction:column; gap:12px; }
+  .dlg-foot { padding:12px 18px 16px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+  .dlg-foot .spacer { margin-right:auto; }
+  .field { display:flex; flex-direction:column; gap:4px; }
+  .field label { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; }
+  .field input[type=text], .field input[type=url], .field input[type=number], .field textarea {
+    font:inherit; color:inherit; background:var(--ground); border:1px solid var(--line); border-radius:8px; padding:8px 10px; width:100%; }
+  .field textarea { resize:vertical; min-height:62px; }
+  .field input:focus, .field textarea:focus { outline:none; border-color:var(--accent); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .check { display:flex; align-items:center; gap:8px; font-size:14px; }
+  .daypick { display:flex; flex-direction:column; gap:5px; }
+  .daypick button { display:flex; justify-content:space-between; gap:10px; align-items:center; text-align:left;
+                    border:1px solid var(--line-soft); background:var(--ground); border-radius:8px; padding:9px 11px; font-size:14px; }
+  .daypick button:hover { border-color:var(--accent); }
+  .daypick .taken { font-size:12px; color:var(--muted); text-align:right; overflow-wrap:anywhere; }
+  .err { color:var(--danger); font-size:12.5px; }
+
+  #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(12px); opacity:0;
+           background:var(--ink); color:var(--ground); padding:9px 16px; border-radius:999px; font-size:13.5px;
+           pointer-events:none; transition:opacity .18s, transform .18s; z-index:60; max-width:92vw; text-align:center; }
+  #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+</style>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Middagsbanken</h1>
+      <p><span class="count" id="stat">Hämtar middagsförslag …</span></p>
+    </div>
+    <nav class="weeknav" aria-label="Veckoval">
+      <button class="btn btn-icon" id="prev-week" title="Föregående vecka" aria-label="Föregående vecka">←</button>
+      <span class="label"><span class="wk" id="wk-num">v.&nbsp;–</span><span class="span" id="wk-span">&nbsp;</span></span>
+      <button class="btn btn-icon" id="next-week" title="Nästa vecka" aria-label="Nästa vecka">→</button>
+      <button class="btn" id="this-week">Idag</button>
+    </nav>
+  </header>
+
+  <div id="notice-slot"></div>
+
+  <main class="layout">
+    <section class="week" aria-labelledby="week-h">
+      <div class="sec-head">
+        <h2 id="week-h">Veckomatsedel</h2>
+        <span class="hint" id="week-hint"></span>
+      </div>
+      <div class="week-tools">
+        <button class="btn" id="fill-rest">Slumpa resten</button>
+        <button class="btn" id="copy-last">Förra veckan</button>
+        <button class="btn" id="share-week">Kopiera</button>
+        <button class="btn" id="clear-week">Rensa</button>
+      </div>
+      <ol class="days" id="days"></ol>
+    </section>
+
+    <section class="library" aria-labelledby="lib-h">
+      <div class="sec-head">
+        <h2 id="lib-h">Middagsförslag</h2>
+        <button class="btn btn-primary" id="new-meal">Nytt förslag</button>
+      </div>
+      <div class="toolbar">
+        <div class="search">
+          <span aria-hidden="true" style="color:var(--faint)">⌕</span>
+          <input type="search" id="q" placeholder="Sök middag, ingrediens eller anteckning" aria-label="Sök bland middagsförslagen">
+        </div>
+        <select class="sel" id="sort" aria-label="Sortering">
+          <option value="namn">Namn A–Ö</option>
+          <option value="tid">Kortast tid</option>
+          <option value="ny">Senast tillagda</option>
+        </select>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter"></div>
+      <div class="arm-bar" id="arm-bar">
+        <span>Välj middag till <strong id="arm-day"></strong></span>
+        <button class="btn btn-quiet" id="arm-cancel">Avbryt</button>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="meal-dialog">
+  <form method="dialog" id="meal-form">
+    <div class="dlg-head"><h3 id="meal-dlg-title">Nytt middagsförslag</h3></div>
+    <div class="dlg-body">
+      <div class="field">
+        <label for="f-namn">Namn</label>
+        <input type="text" id="f-namn" required maxlength="120" placeholder="T.ex. Ugnsbakad torsk med dill">
+        <span class="err" id="f-err" hidden>Middagen behöver ett namn.</span>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-tid">Tid (min)</label>
+          <input type="number" id="f-tid" min="5" max="600" step="5" placeholder="40">
+        </div>
+        <div class="field">
+          <label for="f-veg">Vegetariskt</label>
+          <span class="check"><input type="checkbox" id="f-veg"><label for="f-veg" style="text-transform:none;letter-spacing:0;font-weight:400;font-size:14px;color:var(--ink)">Ja, veg</label></span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-lank">Receptlänk</label>
+        <input type="url" id="f-lank" placeholder="https://…">
+      </div>
+      <div class="field">
+        <label for="f-ant">Anteckning</label>
+        <textarea id="f-ant" maxlength="400" placeholder="Tillbehör, tips, vem som gillar den …"></textarea>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn btn-danger spacer" id="f-delete" hidden>Ta bort</button>
+      <button type="button" class="btn" id="f-cancel">Avbryt</button>
+      <button type="submit" class="btn btn-primary" id="f-save">Spara</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="day-dialog">
+  <div class="dlg-head"><h3 id="day-dlg-title">Lägg på dag</h3><p id="day-dlg-sub"></p></div>
+  <div class="dlg-body"><div class="daypick" id="daypick"></div></div>
+  <div class="dlg-foot"><button class="btn" id="day-cancel">Avbryt</button></div>
+</dialog>
+
+<dialog id="text-dialog">
+  <div class="dlg-head"><h3>Veckans matsedel</h3><p>Markera och kopiera.</p></div>
+  <div class="dlg-body"><div class="field"><textarea id="text-out" rows="10" readonly></textarea></div></div>
+  <div class="dlg-foot"><button class="btn" id="text-close">Stäng</button></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DAGAR = ["Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag","Söndag"];
+  var state = {
+    db: null, meals: null, plan: {}, weekStart: mondayOf(new Date()),
+    armed: null, q: "", filter: "alla", sort: "namn", tags: []
+  };
+  var unsubPlan = null;
+
+  /* ---------- små hjälpare ---------- */
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs) {
+    var n = document.createElement(tag), k;
+    attrs = attrs || {};
+    for (k in attrs) {
+      var v = attrs[k];
+      if (v === null || v === false || v === undefined) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var kid = arguments[i];
+      if (kid == null) continue;
+      if (Array.isArray(kid)) kid.forEach(function (c) { if (c != null) n.append(c); });
+      else n.append(kid);
+    }
+    return n;
+  }
+  var toastTimer;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("on"); }, 2600);
+  }
+  function safeUrl(u) { return typeof u === "string" && /^https?:\/\//i.test(u.trim()) ? u.trim() : ""; }
+  function fold(s) { return (s || "").toString().toLowerCase(); }
+
+  /* ---------- veckologik ---------- */
+  function mondayOf(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function addDays(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+  function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function isoWeek(d) {
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7) + 3);
+    var ft = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+    ft.setUTCDate(ft.getUTCDate() - ((ft.getUTCDay() + 6) % 7) + 3);
+    return { ar: t.getUTCFullYear(), vecka: 1 + Math.round((t - ft) / 604800000) };
+  }
+  function keyOf(monday) { var w = isoWeek(monday); return w.ar + "-v" + String(w.vecka).padStart(2, "0"); }
+  var fmtDay = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" });
+
+  /* ---------- databas ---------- */
+  function mealById(id) {
+    if (!id || !state.meals) return null;
+    for (var i = 0; i < state.meals.length; i++) if (state.meals[i].id === id) return state.meals[i];
+    return null;
+  }
+  function planDoc() { return state.db.doc("plans/" + keyOf(state.weekStart)); }
+  function savePlan(dagar) {
+    if (!state.db) { toast("Ingen anslutning – ändringen sparades inte."); return Promise.resolve(); }
+    state.plan = dagar;
+    renderWeek(); renderCards();
+    return planDoc().set({ vecka: keyOf(state.weekStart), dagar: dagar, uppdaterad: new Date().toISOString() })
+      .catch(function () { toast("Kunde inte spara veckan – försök igen."); });
+  }
+  function setDay(i, mealId) {
+    var d = Object.assign({}, state.plan);
+    if (mealId) d[String(i)] = mealId; else delete d[String(i)];
+    return savePlan(d);
+  }
+
+  function watchPlan() {
+    if (unsubPlan) { unsubPlan(); unsubPlan = null; }
+    if (!state.db) return;
+    unsubPlan = planDoc().onSnapshot(function (snap) {
+      var data = snap.exists ? snap.data() : null;
+      state.plan = (data && data.dagar && typeof data.dagar === "object") ? Object.assign({}, data.dagar) : {};
+      renderWeek(); renderCards();
+    }, function () { toast("Tappade kontakten med veckoplanen. Ladda om sidan."); });
+  }
+
+  /* ---------- rendering: vecka ---------- */
+  function renderWeekNav() {
+    var w = isoWeek(state.weekStart);
+    $("wk-num").textContent = "v. " + w.vecka;
+    $("wk-span").textContent = fmtDay.format(state.weekStart) + " – " + fmtDay.format(addDays(state.weekStart, 6));
+    var nu = keyOf(mondayOf(new Date()));
+    $("this-week").disabled = (nu === keyOf(state.weekStart));
+  }
+
+  function renderWeek() {
+    renderWeekNav();
+    var ol = $("days"); ol.textContent = "";
+    var today = ymd(new Date()), planned = 0;
+
+    for (var i = 0; i < 7; i++) {
+      (function (i) {
+        var date = addDays(state.weekStart, i);
+        var id = state.plan[String(i)];
+        var meal = mealById(id);
+        if (id) planned++;
+
+        var cls = "day" + (!id ? " is-empty" : "") + (ymd(date) === today ? " is-today" : "") + (state.armed === i ? " is-armed" : "");
+        var head = el("div", {},
+          el("span", { class: "day-name", text: DAGAR[i] }),
+          el("span", { class: "day-date", text: fmtDay.format(date) })
+        );
+
+        var body;
+        if (!id) {
+          body = el("button", {
+            class: "slot-empty", type: "button",
+            "aria-label": "Välj middag till " + DAGAR[i].toLowerCase(),
+            onclick: function () { armDay(state.armed === i ? null : i); }
+          }, state.armed === i ? "Välj en middag i listan →" : "+  Välj middag");
+        } else if (!meal) {
+          body = el("div", { class: "slot" },
+            el("span", { class: "slot-gone", text: state.meals ? "Middagen är borttagen" : "…" }),
+            el("div", { class: "slot-acts" },
+              el("button", { class: "btn btn-quiet btn-icon", type: "button", title: "Töm dagen", "aria-label": "Töm " + DAGAR[i], onclick: function () { setDay(i, null); } }, "✕"))
+          );
+        } else {
+          var meta = [];
+          if (meal.tid) meta.push(el("span", { class: "tag-time", text: meal.tid + " min" }));
+          if (meal.veg) meta.push(el("span", { class: "tag tag-veg", text: "Veg" }));
+          var url = safeUrl(meal.lank);
+          if (url) meta.push(el("a", { class: "recipe", href: url, target: "_blank", rel: "noopener noreferrer", text: "Recept" }));
+
+          body = el("div", { class: "slot" },
+            el("div", { class: "slot-main" },
+              el("div", { class: "slot-name", text: meal.namn }),
+              meta.length ? el("div", { class: "slot-meta" }, meta) : null
+            ),
+            el("div", { class: "slot-acts" },
+              el("button", { class: "btn btn-quiet btn-icon", type: "button", title: "Byt middag", "aria-label": "Byt middag på " + DAGAR[i], onclick: function () { armDay(i); } }, "⇄"),
+              el("button", { class: "btn btn-quiet btn-icon", type: "button", title: "Töm dagen", "aria-label": "Töm " + DAGAR[i], onclick: function () { setDay(i, null); } }, "✕")
+            )
+          );
+        }
+        ol.append(el("li", { class: cls }, head, body));
+      })(i);
+    }
+
+    $("week-hint").textContent = planned === 7 ? "Hela veckan klar" : planned + " av 7 dagar";
+    $("clear-week").disabled = planned === 0;
+    $("fill-rest").disabled = planned === 7 || !state.meals || !state.meals.length;
+    $("share-week").disabled = planned === 0;
+  }
+
+  function armDay(i) {
+    state.armed = i;
+    var bar = $("arm-bar");
+    if (i === null) {
+      bar.classList.remove("on");
+      document.body.classList.remove("picking");
+    } else {
+      $("arm-day").textContent = DAGAR[i].toLowerCase() + " " + fmtDay.format(addDays(state.weekStart, i));
+      bar.classList.add("on");
+      document.body.classList.add("picking");
+      if (window.innerWidth < 940) $("q").scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    renderWeek();
+  }
+
+  /* ---------- rendering: bibliotek ---------- */
+  var FILTER = [
+    { id: "alla", namn: "Alla" },
+    { id: "veg", namn: "Vegetariskt" },
+    { id: "snabb", namn: "Under 45 min" },
+    { id: "recept", namn: "Har recept" }
+  ];
+
+  function renderChips() {
+    var box = $("chips"); box.textContent = "";
+    FILTER.concat(state.tags.map(function (t) { return { id: "tag:" + t, namn: t }; })).forEach(function (f) {
+      box.append(el("button", {
+        class: "chip", type: "button", "aria-pressed": state.filter === f.id ? "true" : "false",
+        onclick: function () { state.filter = f.id; renderChips(); renderCards(); }
+      }, f.namn));
+    });
+  }
+
+  function visible() {
+    var q = fold(state.q).trim();
+    var list = (state.meals || []).filter(function (m) {
+      if (state.filter === "veg" && !m.veg) return false;
+      if (state.filter === "snabb" && !(m.tid && m.tid < 45)) return false;
+      if (state.filter === "recept" && !safeUrl(m.lank)) return false;
+      if (state.filter.slice(0, 4) === "tag:" && (m.taggar || []).indexOf(state.filter.slice(4)) === -1) return false;
+      if (q && fold(m.namn + " " + (m.anteckning || "") + " " + (m.taggar || []).join(" ")).indexOf(q) === -1) return false;
+      return true;
+    });
+    list.sort(function (a, b) {
+      if (state.sort === "tid") {
+        var ta = a.tid || 9999, tb = b.tid || 9999;
+        if (ta !== tb) return ta - tb;
+      } else if (state.sort === "ny") {
+        var sa = a.skapad || "", sb = b.skapad || "";
+        if (sa !== sb) return sa < sb ? 1 : -1;
+      }
+      return a.namn.localeCompare(b.namn, "sv");
+    });
+    return list;
+  }
+
+  function plannedDays(id) {
+    var out = [];
+    for (var i = 0; i < 7; i++) if (state.plan[String(i)] === id) out.push(DAGAR[i].slice(0, 3));
+    return out;
+  }
+
+  function renderCards() {
+    var box = $("cards"); box.textContent = "";
+
+    if (state.meals === null) {
+      for (var s = 0; s < 6; s++) box.append(el("div", { class: "skeleton" }));
+      return;
+    }
+    var list = visible();
+    if (!list.length) {
+      box.append(el("p", { class: "empty-state", text: state.meals.length ? "Inget förslag matchar sökningen." : "Inga middagsförslag ännu. Lägg till det första!" }));
+      return;
+    }
+
+    list.forEach(function (m) {
+      var days = plannedDays(m.id);
+      var meta = [];
+      if (m.tid) meta.push(el("span", { class: "tag-time", text: m.tid + " min" }));
+      if (m.veg) meta.push(el("span", { class: "tag tag-veg", text: "Veg" }));
+      (m.taggar || []).forEach(function (t) { if (t !== "Matplanering") meta.push(el("span", { class: "tag", text: t })); });
+      if (days.length) meta.push(el("span", { class: "tag tag-planned", text: "Denna vecka: " + days.join(", ") }));
+
+      var url = safeUrl(m.lank);
+      var card = el("article", { class: "card" + (days.length ? " is-planned" : "") },
+        el("h3", { text: m.namn }),
+        m.anteckning ? el("p", { class: "note", text: m.anteckning }) : null,
+        meta.length ? el("div", { class: "card-meta" }, meta) : null,
+        el("div", { class: "card-foot" },
+          url ? el("a", { class: "recipe", href: url, target: "_blank", rel: "noopener noreferrer", text: "Recept ↗" }) : null,
+          el("button", { class: "btn btn-quiet", type: "button", "aria-label": "Ändra " + m.namn, onclick: function (e) { e.stopPropagation(); openMealForm(m); } }, "Ändra"),
+          el("button", { class: "btn", type: "button", "aria-label": "Lägg " + m.namn + " på en dag", onclick: function (e) { e.stopPropagation(); place(m); } }, "Planera")
+        )
+      );
+      card.addEventListener("click", function () { if (state.armed !== null) place(m); });
+      box.append(card);
+    });
+  }
+
+  function place(m) {
+    if (state.armed !== null) {
+      var i = state.armed;
+      armDay(null);
+      setDay(i, m.id);
+      toast(m.namn + " → " + DAGAR[i].toLowerCase());
+    } else {
+      openDayPicker(m);
+    }
+  }
+
+  function renderStats() {
+    if (!state.meals) return;
+    var veg = state.meals.filter(function (m) { return m.veg; }).length;
+    var rec = state.meals.filter(function (m) { return safeUrl(m.lank); }).length;
+    $("stat").textContent = state.meals.length + " förslag · " + veg + " vegetariska · " + rec + " med recept";
+  }
+
+  /* ---------- dagväljare ---------- */
+  var dayDlg = $("day-dialog");
+  function openDayPicker(m) {
+    $("day-dlg-title").textContent = "Lägg på dag";
+    $("day-dlg-sub").textContent = m.namn;
+    var box = $("daypick"); box.textContent = "";
+    for (var i = 0; i < 7; i++) {
+      (function (i) {
+        var taken = mealById(state.plan[String(i)]);
+        box.append(el("button", {
+          type: "button",
+          onclick: function () { dayDlg.close(); setDay(i, m.id); toast(m.namn + " → " + DAGAR[i].toLowerCase()); }
+        },
+          el("span", {}, DAGAR[i] + " " + fmtDay.format(addDays(state.weekStart, i))),
+          el("span", { class: "taken", text: taken ? "ersätter " + taken.namn : (state.plan[String(i)] ? "ersätter tidigare val" : "tom") })
+        ));
+      })(i);
+    }
+    dayDlg.showModal();
+  }
+  $("day-cancel").addEventListener("click", function () { dayDlg.close(); });
+
+  /* ---------- formulär ---------- */
+  var mealDlg = $("meal-dialog"), editing = null;
+  function openMealForm(m) {
+    editing = m || null;
+    $("meal-dlg-title").textContent = m ? "Redigera middag" : "Nytt middagsförslag";
+    $("f-namn").value = m ? m.namn : "";
+    $("f-tid").value = m && m.tid ? m.tid : "";
+    $("f-veg").checked = !!(m && m.veg);
+    $("f-lank").value = m ? (m.lank || "") : "";
+    $("f-ant").value = m ? (m.anteckning || "") : "";
+    $("f-err").hidden = true;
+    $("f-delete").hidden = !m;
+    mealDlg.showModal();
+    $("f-namn").focus();
+  }
+  $("new-meal").addEventListener("click", function () { openMealForm(null); });
+  $("f-cancel").addEventListener("click", function () { mealDlg.close(); });
+
+  $("meal-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var namn = $("f-namn").value.trim();
+    if (!namn) { $("f-err").hidden = false; $("f-namn").focus(); return; }
+    if (!state.db) { toast("Ingen anslutning – kunde inte spara."); return; }
+
+    var tid = parseInt($("f-tid").value, 10);
+    var body = {
+      namn: namn,
+      tid: isFinite(tid) && tid > 0 ? tid : null,
+      veg: $("f-veg").checked,
+      lank: $("f-lank").value.trim(),
+      anteckning: $("f-ant").value.trim(),
+      kalla: editing ? (editing.kalla || "Tillagd i appen") : "Tillagd i appen",
+      taggar: editing ? (editing.taggar || []) : ["Eget tillägg"],
+      nr: editing ? (editing.nr || null) : null,
+      skapad: editing ? (editing.skapad || new Date().toISOString()) : new Date().toISOString()
+    };
+    mealDlg.close();
+    var p = editing ? state.db.doc("meals/" + editing.id).set(body) : state.db.collection("meals").add(body);
+    p.then(function () { toast(editing ? "Ändringen sparad." : namn + " tillagd."); })
+      .catch(function () { toast("Kunde inte spara middagen – försök igen."); });
+    editing = null;
+  });
+
+  $("f-delete").addEventListener("click", function () {
+    if (!editing || !state.db) return;
+    var m = editing;
+    if (!window.confirm("Ta bort ”" + m.namn + "” ur listan?")) return;
+    mealDlg.close(); editing = null;
+    for (var i = 0; i < 7; i++) if (state.plan[String(i)] === m.id) setDay(i, null);
+    state.db.doc("meals/" + m.id).delete()
+      .then(function () { toast(m.namn + " borttagen."); })
+      .catch(function () { toast("Kunde inte ta bort middagen."); });
+  });
+
+  /* ---------- veckoknappar ---------- */
+  $("prev-week").addEventListener("click", function () { state.weekStart = addDays(state.weekStart, -7); armDay(null); watchPlan(); renderWeek(); });
+  $("next-week").addEventListener("click", function () { state.weekStart = addDays(state.weekStart, 7); armDay(null); watchPlan(); renderWeek(); });
+  $("this-week").addEventListener("click", function () { state.weekStart = mondayOf(new Date()); armDay(null); watchPlan(); renderWeek(); });
+  $("arm-cancel").addEventListener("click", function () { armDay(null); });
+
+  $("clear-week").addEventListener("click", function () {
+    if (!window.confirm("Rensa hela veckan?")) return;
+    savePlan({});
+  });
+
+  $("fill-rest").addEventListener("click", function () {
+    if (!state.meals || !state.meals.length) return;
+    var used = {}, i;
+    for (i = 0; i < 7; i++) if (state.plan[String(i)]) used[state.plan[String(i)]] = true;
+    var pool = state.meals.filter(function (m) { return !used[m.id]; });
+    var next = Object.assign({}, state.plan), lagt = 0;
+    for (i = 0; i < 7; i++) {
+      if (next[String(i)] || !pool.length) continue;
+      var pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      next[String(i)] = pick.id; lagt++;
+    }
+    if (!lagt) { toast("Det finns inga fler middagar att fylla på med."); return; }
+    savePlan(next);
+    toast(lagt + (lagt === 1 ? " dag fylld." : " dagar fyllda."));
+  });
+
+  $("copy-last").addEventListener("click", function () {
+    if (!state.db) return;
+    var prev = addDays(state.weekStart, -7);
+    state.db.doc("plans/" + keyOf(prev)).get().then(function (snap) {
+      var d = snap.exists && snap.data() ? snap.data().dagar : null;
+      if (!d || !Object.keys(d).length) { toast("Förra veckan är tom."); return; }
+      savePlan(Object.assign({}, d));
+      toast("Hämtade matsedeln från v. " + isoWeek(prev).vecka + ".");
+    }).catch(function () { toast("Kunde inte hämta förra veckan."); });
+  });
+
+  $("share-week").addEventListener("click", function () {
+    var w = isoWeek(state.weekStart);
+    var rader = ["Veckomatsedel v. " + w.vecka + " (" + fmtDay.format(state.weekStart) + "–" + fmtDay.format(addDays(state.weekStart, 6)) + ")", ""];
+    for (var i = 0; i < 7; i++) {
+      var m = mealById(state.plan[String(i)]);
+      rader.push(DAGAR[i] + ": " + (m ? m.namn + (m.tid ? " (" + m.tid + " min)" : "") : "—"));
+    }
+    var text = rader.join("\n");
+    var done = function () { toast("Matsedeln kopierad."); };
+    var fallback = function () { $("text-out").value = text; $("text-dialog").showModal(); $("text-out").select(); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  });
+  $("text-close").addEventListener("click", function () { $("text-dialog").close(); });
+
+  $("q").addEventListener("input", function (e) { state.q = e.target.value; renderCards(); });
+  $("sort").addEventListener("change", function (e) { state.sort = e.target.value; renderCards(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && state.armed !== null) armDay(null); });
+
+  /* ---------- start ---------- */
+  renderChips();
+  renderWeek();
+  renderCards();
+
+  function noConnection(msg) {
+    state.meals = [];
+    $("notice-slot").append(el("div", { class: "notice", text: msg }));
+    $("stat").textContent = "Ingen anslutning till middagslistan";
+    renderCards(); renderWeek();
+  }
+
+  var boot = (window.claude && window.claude.use) ? window.claude.use("db") : Promise.resolve(null);
+  boot.then(function (db) {
+    if (!db) { noConnection("Middagslistan går inte att nå i den här vyn. Öppna sidan via din egen länk på claude.ai så laddas förslagen och veckoplanen."); return; }
+    state.db = db;
+
+    db.collection("meals").onSnapshot(function (snap) {
+      state.meals = snap.docs.map(function (d) {
+        var v = d.data() || {};
+        return {
+          id: d.id, namn: v.namn || "(namnlös)", tid: typeof v.tid === "number" ? v.tid : null,
+          veg: !!v.veg, lank: v.lank || "", anteckning: v.anteckning || "",
+          kalla: v.kalla || "", taggar: Array.isArray(v.taggar) ? v.taggar : [], skapad: v.skapad || "", nr: v.nr || null
+        };
+      });
+      var tags = [];
+      state.meals.forEach(function (m) { m.taggar.forEach(function (t) { if (t !== "Matplanering" && tags.indexOf(t) === -1) tags.push(t); }); });
+      state.tags = tags.sort(function (a, b) { return a.localeCompare(b, "sv"); });
+      renderStats(); renderChips(); renderCards(); renderWeek();
+    }, function () { toast("Tappade kontakten med middagslistan. Ladda om sidan."); });
+
+    watchPlan();
+  }, function () { noConnection("Kunde inte starta middagslistan. Ladda om sidan."); });
+})();
+</script>
