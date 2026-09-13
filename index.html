@@ -189,17 +189,6 @@
   #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
   .mode-note { display:block; margin-top:2px; font-size:12px; color:var(--faint); }
 
-  .notice.delad { display:flex; flex-direction:column; gap:10px; background:var(--accent-soft);
-                  border-color:var(--accent-line); margin-bottom:20px; }
-  .delad-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-  .delad-head strong { font-family:var(--font-display); font-size:16px; font-weight:600; }
-  .delad-span { font-family:var(--font-mono); font-size:12px; color:var(--muted); }
-  .delad-lista { list-style:none; margin:0; padding:0; display:grid;
-                 grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:2px 18px; font-size:13.5px; }
-  .delad-lista li { display:flex; gap:8px; }
-  .delad-dag { font-weight:600; min-width:62px; flex:0 0 auto; }
-  .delad-knappar { display:flex; gap:8px; flex-wrap:wrap; }
-
   .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 </style>
 
@@ -229,7 +218,6 @@
         <button class="btn" id="fill-rest">Slumpa resten</button>
         <button class="btn" id="copy-last">Förra veckan</button>
         <button class="btn" id="share-week">Kopiera text</button>
-        <button class="btn" id="share-link">Dela länk</button>
         <button class="btn" id="clear-week">Rensa</button>
       </div>
       <ol class="days" id="days"></ol>
@@ -320,7 +308,7 @@
     store: null, delad: false, meals: null, plan: {}, weekStart: mondayOf(new Date()),
     armed: null, q: "", filter: "alla", sort: "namn", tags: []
   };
-  var unsubPlan = null, delning = null;
+  var unsubPlan = null;
 
   /* ---------- små hjälpare ---------- */
   function $(id) { return document.getElementById(id); }
@@ -379,89 +367,85 @@
     return { ar: t.getUTCFullYear(), vecka: 1 + Math.round((t - ft) / 604800000) };
   }
   function keyOf(monday) { var w = isoWeek(monday); return w.ar + "-v" + String(w.vecka).padStart(2, "0"); }
-  function mondayFromKey(key) {
-    var m = /^(\d{4})-v(\d{1,2})$/.exec(key || "");
-    if (!m) return null;
-    var jan4 = new Date(Number(m[1]), 0, 4);
-    return addDays(mondayOf(jan4), (Number(m[2]) - 1) * 7);
-  }
   var fmtDay = new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short" });
 
-  /* ---------- lagring: artifact-databas (delad) ---------- */
-  function dbStore(db) {
+  /* ---------- lagring: Google Sheets via Apps Script ---------- */
+  /**
+   * En delad databas för alla som använder sidan. Läsningar och skrivningar
+   * går till ett Apps Script som ligger på kalkylarket "Middagsbanken –
+   * databas". Sidan hämtar om med jämna mellanrum så att andras ändringar
+   * dyker upp av sig själva.
+   */
+  function sheetStore(api) {
+    var cache = { middagar: [], veckor: {} };
+    var mealCb = null, planCb = null, planKey = null, laddad = false, tappad = false;
+
+    function sand() {
+      if (!laddad) return;
+      if (mealCb) mealCb(cache.middagar.map(function (m) { return normalisera(m.id, m); }));
+      if (planCb && planKey) planCb(Object.assign({}, cache.veckor[planKey] || {}));
+    }
+
+    function tolka(r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json().then(function (d) {
+        if (!d || !d.ok) throw new Error((d && d.fel) || "Databasen svarade med ett fel");
+        if (d.middagar) {
+          cache.middagar = d.middagar;
+          cache.veckor = d.veckor || {};
+          laddad = true;
+          sand();
+        }
+        return d;
+      });
+    }
+
+    function hamta() {
+      return fetch(api + (api.indexOf("?") === -1 ? "?" : "&") + "t=" + Date.now())
+        .then(tolka)
+        .then(function (d) {
+          if (tappad) { tappad = false; toast("Kontakten med databasen är tillbaka."); }
+          return d;
+        }, function (e) {
+          if (!tappad && laddad) { tappad = true; toast("Når inte databasen just nu."); }
+          throw e;
+        });
+    }
+
+    /**
+     * POST med Content-Type text/plain är avsiktligt: då räknas anropet som
+     * en enkel förfrågan och webbläsaren hoppar över OPTIONS, som Apps
+     * Script inte kan svara på. Kroppen är JSON ändå.
+     */
+    function skicka(nyttel) {
+      return fetch(api, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(nyttel)
+      }).then(tolka);
+    }
+
+    var tyst = function () {};
+    setInterval(function () { if (!document.hidden) hamta().catch(tyst); }, 20000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) hamta().catch(tyst); });
+
     return {
       delad: true,
-      onMeals: function (cb, err) {
-        return db.collection("meals").onSnapshot(function (s) {
-          cb(s.docs.map(function (d) { return normalisera(d.id, d.data() || {}); }));
-        }, err);
-      },
-      onPlan: function (key, cb, err) {
-        return db.doc("plans/" + key).onSnapshot(function (s) {
-          var v = s.exists ? s.data() : null;
-          cb(v && v.dagar && typeof v.dagar === "object" ? Object.assign({}, v.dagar) : {});
-        }, err);
-      },
-      getPlan: function (key) {
-        return db.doc("plans/" + key).get().then(function (s) {
-          var v = s.exists ? s.data() : null;
-          return v && v.dagar && typeof v.dagar === "object" ? Object.assign({}, v.dagar) : {};
-        });
-      },
-      savePlan: function (key, dagar) {
-        return db.doc("plans/" + key).set({ vecka: key, dagar: dagar, uppdaterad: new Date().toISOString() });
-      },
-      addMeal: function (body) { return db.collection("meals").add(body).then(function (ref) { return ref.id; }); },
-      setMeal: function (id, body) { return db.doc("meals/" + id).set(body); },
-      delMeal: function (id) { return db.doc("meals/" + id).delete(); }
-    };
-  }
-
-  /* ---------- lagring: den egna webbläsaren ---------- */
-  function localStore(seed) {
-    var MK = "middagsbanken.middagar", PK = "middagsbanken.veckor";
-    var mealCb = null, planCb = null, planKey = null;
-
-    function las(k, fb) { try { var v = window.localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (e) { return fb; } }
-    function skriv(k, v) { try { window.localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* privat läge eller fullt */ } }
-
-    var meals = las(MK, null);
-    if (!Array.isArray(meals) || !meals.length) { meals = seed.slice(); skriv(MK, meals); }
-    var plans = las(PK, {}) || {};
-
-    function sparaMeals() { skriv(MK, meals); if (mealCb) mealCb(meals.map(function (m) { return normalisera(m.id, m); })); }
-    function sparaPlans() { skriv(PK, plans); if (planCb && planKey) planCb(Object.assign({}, plans[planKey] || {})); }
-
-    return {
-      delad: false,
-      onMeals: function (cb) {
-        mealCb = cb;
-        setTimeout(function () { cb(meals.map(function (m) { return normalisera(m.id, m); })); }, 0);
-        return function () { mealCb = null; };
-      },
+      start: hamta,
+      onMeals: function (cb) { mealCb = cb; sand(); return function () { mealCb = null; }; },
       onPlan: function (key, cb) {
         planCb = cb; planKey = key;
-        setTimeout(function () { cb(Object.assign({}, plans[key] || {})); }, 0);
+        cb(Object.assign({}, cache.veckor[key] || {}));
         return function () { planCb = null; planKey = null; };
       },
-      getPlan: function (key) { return Promise.resolve(Object.assign({}, plans[key] || {})); },
+      getPlan: function (key) { return Promise.resolve(Object.assign({}, cache.veckor[key] || {})); },
       savePlan: function (key, dagar) {
-        if (Object.keys(dagar).length) plans[key] = dagar; else delete plans[key];
-        sparaPlans(); return Promise.resolve();
+        cache.veckor[key] = dagar;
+        return skicka({ action: "sparaVecka", vecka: key, dagar: dagar }).then(tyst);
       },
-      addMeal: function (body) {
-        var id = nyttId();
-        meals.push(Object.assign({ id: id }, body));
-        sparaMeals(); return Promise.resolve(id);
-      },
-      setMeal: function (id, body) {
-        for (var i = 0; i < meals.length; i++) if (meals[i].id === id) meals[i] = Object.assign({ id: id }, body);
-        sparaMeals(); return Promise.resolve();
-      },
-      delMeal: function (id) {
-        meals = meals.filter(function (m) { return m.id !== id; });
-        sparaMeals(); return Promise.resolve();
-      }
+      addMeal: function (body) { return skicka({ action: "nyMiddag", middag: body }).then(function (d) { return d.id; }); },
+      setMeal: function (id, body) { return skicka({ action: "andraMiddag", id: id, middag: body }).then(tyst); },
+      delMeal: function (id) { return skicka({ action: "taBortMiddag", id: id }).then(tyst); }
     };
   }
 
@@ -469,12 +453,6 @@
   function mealById(id) {
     if (!id || !state.meals) return null;
     for (var i = 0; i < state.meals.length; i++) if (state.meals[i].id === id) return state.meals[i];
-    return null;
-  }
-  function mealByName(namn) {
-    var n = fold(namn).trim();
-    if (!n || !state.meals) return null;
-    for (var i = 0; i < state.meals.length; i++) if (fold(state.meals[i].namn).trim() === n) return state.meals[i];
     return null;
   }
   function savePlan(dagar) {
@@ -562,7 +540,6 @@
     $("clear-week").disabled = planned === 0;
     $("fill-rest").disabled = planned === 7 || !state.meals || !state.meals.length;
     $("share-week").disabled = planned === 0;
-    $("share-link").disabled = planned === 0;
   }
 
   function armDay(i) {
@@ -797,12 +774,7 @@
     }).catch(function () { toast("Kunde inte hämta förra veckan."); });
   });
 
-  /* ---------- text och delning ---------- */
-  function veckansNamn() {
-    var namn = [];
-    for (var i = 0; i < 7; i++) { var m = mealById(state.plan[String(i)]); namn.push(m ? m.namn : ""); }
-    return namn;
-  }
+  /* ---------- veckan som text ---------- */
   function veckanSomText() {
     var w = isoWeek(state.weekStart);
     var rader = ["Veckomatsedel v. " + w.vecka + " (" + fmtDay.format(state.weekStart) + "–" + fmtDay.format(addDays(state.weekStart, 6)) + ")", ""];
@@ -812,104 +784,17 @@
     }
     return rader.join("\n");
   }
-  function b64e(s) {
-    var bytes = new TextEncoder().encode(s), bin = "";
-    bytes.forEach(function (b) { bin += String.fromCharCode(b); });
-    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-  function b64d(s) {
-    var bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
-  }
-  function kopiera(text, ok) {
-    var fallback = function () { $("text-out").value = text; $("text-dialog").showModal(); $("text-out").select(); };
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fallback);
-      else fallback();
-    } catch (e) { fallback(); }
-  }
 
   $("share-week").addEventListener("click", function () {
-    kopiera(veckanSomText(), function () { toast("Matsedeln kopierad."); });
-  });
-
-  $("share-link").addEventListener("click", function () {
-    var nyttel = { v: keyOf(state.weekStart), d: veckansNamn() };
-    var url = location.origin + location.pathname + location.search + "#m=" + b64e(JSON.stringify(nyttel));
-    kopiera(url, function () { toast("Länk till veckan kopierad."); });
-  });
-
-  $("text-close").addEventListener("click", function () { $("text-dialog").close(); });
-
-  /* ---------- delad matsedel via länk ---------- */
-  function lasDelning() {
-    var m = /[#&]m=([A-Za-z0-9\-_]+)/.exec(location.hash || "");
-    if (!m) return null;
+    var text = veckanSomText();
+    var visa = function () { $("text-out").value = text; $("text-dialog").showModal(); $("text-out").select(); };
     try {
-      var d = JSON.parse(b64d(m[1]));
-      if (!d || !Array.isArray(d.d) || !d.d.some(function (n) { return n; })) return null;
-      return { v: typeof d.v === "string" ? d.v : keyOf(mondayOf(new Date())), d: d.d.slice(0, 7) };
-    } catch (e) { return null; }
-  }
-
-  function visaDelning() {
-    if (!delning || !state.meals) return;
-    var monday = mondayFromKey(delning.v) || mondayOf(new Date());
-    var w = isoWeek(monday);
-    var lista = el("ul", { class: "delad-lista" });
-    for (var i = 0; i < 7; i++) {
-      if (!delning.d[i]) continue;
-      lista.append(el("li", {}, el("span", { class: "delad-dag", text: DAGAR[i] }), el("span", { text: delning.d[i] })));
-    }
-    var box = el("div", { class: "notice delad" },
-      el("div", { class: "delad-head" },
-        el("strong", { text: "Delad matsedel för v. " + w.vecka }),
-        el("span", { class: "delad-span", text: fmtDay.format(monday) + " – " + fmtDay.format(addDays(monday, 6)) })),
-      lista,
-      el("div", { class: "delad-knappar" },
-        el("button", { class: "btn btn-primary", type: "button", onclick: function () { importera(monday); } }, "Lägg in i min matsedel"),
-        el("button", { class: "btn", type: "button", onclick: stangDelning }, "Nej tack"))
-    );
-    $("notice-slot").textContent = "";
-    $("notice-slot").append(box);
-    gotoWeek(monday);
-  }
-
-  function stangDelning() {
-    delning = null;
-    $("notice-slot").textContent = "";
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { location.hash = ""; }
-  }
-
-  function importera(monday) {
-    if (!state.store) return;
-    var namn = delning.d.slice();
-    state.weekStart = monday;
-    var dagar = {}, kedja = Promise.resolve(), nya = 0;
-
-    namn.forEach(function (n, i) {
-      if (!n) return;
-      kedja = kedja.then(function () {
-        var m = mealByName(n);
-        if (m) { dagar[String(i)] = m.id; return; }
-        nya++;
-        return state.store.addMeal({
-          namn: n, tid: null, veg: false, lank: "", anteckning: "",
-          kalla: "Från delad matsedel", taggar: ["Eget tillägg"], nr: null, skapad: new Date().toISOString()
-        }).then(function (id) { dagar[String(i)] = id; });
-      });
-    });
-
-    kedja.then(function () {
-      return savePlan(dagar);
-    }).then(function () {
-      stangDelning();
-      watchPlan();
-      toast(nya ? "Matsedeln inlagd. " + nya + (nya === 1 ? " ny middag" : " nya middagar") + " tillagda i listan." : "Matsedeln är inlagd.");
-    }).catch(function () { toast("Kunde inte lägga in matsedeln."); });
-  }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { toast("Matsedeln kopierad."); }, visa);
+      } else { visa(); }
+    } catch (e) { visa(); }
+  });
+  $("text-close").addEventListener("click", function () { $("text-dialog").close(); });
 
   /* ---------- sök och tangenter ---------- */
   $("q").addEventListener("input", function (e) { state.q = e.target.value; renderCards(); });
@@ -920,40 +805,49 @@
   renderChips();
   renderWeek();
   renderCards();
-  delning = lasDelning();
 
   function anvand(store) {
     state.store = store;
     state.delad = store.delad;
-    $("mode-note").textContent = store.delad
-      ? "Delad lista – alla som öppnar sidan ser samma matsedel"
-      : "Sparas i den här webbläsaren";
+    $("mode-note").textContent = "Delad databas – alla som öppnar sidan ser och ändrar samma matsedel";
     store.onMeals(function (meals) {
       state.meals = meals;
       var tags = [];
       meals.forEach(function (m) { m.taggar.forEach(function (t) { if (t !== "Matplanering" && tags.indexOf(t) === -1) tags.push(t); }); });
       state.tags = tags.sort(function (a, b) { return a.localeCompare(b, "sv"); });
       renderStats(); renderChips(); renderCards(); renderWeek();
-      if (delning) visaDelning();
-    }, function () { toast("Tappade kontakten med middagslistan. Ladda om sidan."); });
+    });
     watchPlan();
   }
 
   function ingenData(msg) {
     state.meals = [];
+    $("notice-slot").textContent = "";
     $("notice-slot").append(el("div", { class: "notice", text: msg }));
-    $("stat").textContent = "Middagslistan kunde inte laddas";
+    $("stat").textContent = "Databasen är inte tillgänglig";
+    $("mode-note").textContent = " ";
     renderCards(); renderWeek();
   }
 
-  var boot = (window.claude && window.claude.use) ? window.claude.use("db") : Promise.resolve(null);
-  boot.then(function (db) {
-    if (db) { anvand(dbStore(db)); return null; }
-    return fetch("data/middagar.json", { cache: "no-cache" })
-      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-      .then(function (seed) { anvand(localStore(seed)); });
+  /** Adressen till Apps Script-databasen. ?api=… går före, för test. */
+  function konfig() {
+    var fran = new URLSearchParams(location.search).get("api");
+    if (fran) return Promise.resolve({ api: fran });
+    return fetch("data/config.json", { cache: "no-cache" })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .catch(function () { return {}; });
+  }
+
+  konfig().then(function (cfg) {
+    var api = ((cfg && cfg.api) || "").trim();
+    if (!api) {
+      ingenData("Databasen är inte inkopplad än. Följ instruktionerna högst upp i apps-script/Middagsbanken.gs och lägg webbadressen i data/config.json.");
+      return null;
+    }
+    anvand(sheetStore(api));
+    return state.store.start();
   }).catch(function () {
-    ingenData("Middagslistan kunde inte laddas. Kontrollera att data/middagar.json ligger bredvid sidan och ladda om.");
+    ingenData("Når inte databasen. Kontrollera adressen i data/config.json och ladda om sidan.");
   });
 })();
 </script>
