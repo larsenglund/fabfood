@@ -1,6 +1,6 @@
 {
   "_": "Firebase-projektet. Bara projectId behövs för Firestore — ingen API-nyckel och ingen app-registrering. Vad som får läsas och skrivas styrs av firestore.rules.",
   "firebase": {
-    "projectId": "fabfood"
+    "projectId": "fabfood-794ec"
   }
 }

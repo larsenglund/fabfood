@@ -53,11 +53,11 @@ def main() -> int:
         vard = f"http://{args.emulator}"
         nyckel = None
     else:
-        if not projekt or not cfg.get("apiKey"):
-            print("data/config.json saknar firebase.projectId eller firebase.apiKey", file=sys.stderr)
+        if not projekt:
+            print("data/config.json saknar firebase.projectId", file=sys.stderr)
             return 1
         vard = "https://firestore.googleapis.com"
-        nyckel = cfg["apiKey"]
+        nyckel = cfg.get("apiKey")  # behövs inte, men skadar inte om den finns
 
     bas = f"{vard}/v1/projects/{projekt}/databases/(default)/documents"
     middagar = json.loads((ROT / "data" / "middagar.json").read_text())
