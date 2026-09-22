@@ -1,46 +1,36 @@
 <title>Middagsbanken</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M16 32l2-11 11 6z' fill='%23FF8FB1'/%3E%3Cpath d='M48 32l-2-11-11 6z' fill='%23FF8FB1'/%3E%3Cellipse cx='32' cy='40' rx='19' ry='16' fill='%23FFB8CF'/%3E%3Cellipse cx='25' cy='38' rx='2.5' ry='3' fill='%234A3340'/%3E%3Cellipse cx='39' cy='38' rx='2.5' ry='3' fill='%234A3340'/%3E%3Cpath d='M28 46q2 3 4 0 2 3 4 0' fill='none' stroke='%234A3340' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M16 32l2-11 11 6z' fill='%236FC0F0'/%3E%3Cpath d='M48 32l-2-11-11 6z' fill='%236FC0F0'/%3E%3Cellipse cx='32' cy='40' rx='19' ry='16' fill='%23A9DBF6'/%3E%3Cellipse cx='25' cy='38' rx='2.5' ry='3' fill='%234A3340'/%3E%3Cellipse cx='39' cy='38' rx='2.5' ry='3' fill='%234A3340'/%3E%3Cpath d='M28 46q2 3 4 0 2 3 4 0' fill='none' stroke='%234A3340' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap">
 <style>
   :root {
-    --ground:#FFF6F8; --surface:#FFFFFF; --sunken:#FFEDF2;
-    --ink:#46303D; --muted:#8E7383; --faint:#B49CA8;
-    --line:#FBD9E3; --line-soft:#FDE8EF;
-    --accent:#FF8FB1; --accent-ink:#4A2333; --accent-deep:#E0507F; --accent-soft:#FFE4EC;
-    --mint:#3F9E8C; --mint-soft:#DDF4EE;
-    --butter:#C98A18; --butter-soft:#FFF1CE;
-    --lilac:#8F79D4; --lilac-soft:#EDE7FD;
-    --danger:#D9536B;
-    --skugga:0 2px 0 rgba(255,143,177,.18), 0 10px 22px -14px rgba(120,60,85,.35);
-    --skugga-lyft:0 3px 0 rgba(255,143,177,.28), 0 14px 26px -14px rgba(120,60,85,.4);
+    --ground:#F2F9FE; --surface:#FFFFFF; --sunken:#E7F3FD;
+    --ink:#26384A; --muted:#6B8299; --faint:#9CB3C8;
+    --line:#CFE6F8; --line-soft:#E6F2FC;
+    --accent:#6FC0F0; --accent-ink:#0E3A54; --accent-deep:#1C7CB8; --accent-soft:#DCEFFC;
+    --mint:#2E8C5B; --mint-soft:#DDF2E4;
+    --butter:#B5800F; --butter-soft:#FFF1CE;
+    --korall:#C2643C; --korall-soft:#FDE7DB;
+    --danger:#CE4A63;
+    --skugga:0 2px 0 rgba(111,192,240,.22), 0 10px 22px -14px rgba(30,70,100,.35);
+    --skugga-lyft:0 3px 0 rgba(111,192,240,.32), 0 14px 26px -14px rgba(30,70,100,.42);
     --r:18px; --r-liten:12px;
     --font-display:"Baloo 2","Trebuchet MS",sans-serif;
     --font-body:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN",-apple-system,sans-serif;
   }
-  :root:not([data-theme="light"]) { color-scheme: light dark; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ground:#211823; --surface:#2E2130; --sunken:#271C29;
-      --ink:#FBEAF2; --muted:#C2A6B6; --faint:#96798A;
-      --line:#412F3F; --line-soft:#372739;
-      --accent:#FF9FC0; --accent-ink:#2A1622; --accent-deep:#FFB8D2; --accent-soft:#3D2734;
-      --mint:#7FD8C6; --mint-soft:#22382F;
-      --butter:#F5CE72; --butter-soft:#3A2E17;
-      --lilac:#C9B9F5; --lilac-soft:#2C2440;
-      --danger:#FF8C9F;
-      --skugga:0 2px 0 rgba(0,0,0,.35), 0 10px 22px -14px rgba(0,0,0,.8);
-      --skugga-lyft:0 3px 0 rgba(0,0,0,.45), 0 14px 26px -14px rgba(0,0,0,.9);
-    }
-  }
+  /* Sidan är ljus för alla — systemets mörka läge slår inte igenom.
+     Paletten nedan ligger kvar bakom data-theme="dark" så att en
+     knapp för mörkt läge bara är några rader bort om den behövs. */
+  :root { color-scheme: light; }
   :root[data-theme="dark"] {
-    --ground:#211823; --surface:#2E2130; --sunken:#271C29;
-    --ink:#FBEAF2; --muted:#C2A6B6; --faint:#96798A;
-    --line:#412F3F; --line-soft:#372739;
-    --accent:#FF9FC0; --accent-ink:#2A1622; --accent-deep:#FFB8D2; --accent-soft:#3D2734;
-    --mint:#7FD8C6; --mint-soft:#22382F;
-    --butter:#F5CE72; --butter-soft:#3A2E17;
-    --lilac:#C9B9F5; --lilac-soft:#2C2440;
+    color-scheme: dark;
+    --ground:#111C26; --surface:#1B2A38; --sunken:#16232F;
+    --ink:#E8F2FA; --muted:#9FB8CD; --faint:#7590A8;
+    --line:#2C4356; --line-soft:#243747;
+    --accent:#7FC9F5; --accent-ink:#0B2231; --accent-deep:#A9DCFA; --accent-soft:#1E3A50;
+    --mint:#74D3A0; --mint-soft:#1B3527;
+    --butter:#F2CE72; --butter-soft:#3A3117;
+    --korall:#F0A176; --korall-soft:#3A2519;
     --danger:#FF8C9F;
     --skugga:0 2px 0 rgba(0,0,0,.35), 0 10px 22px -14px rgba(0,0,0,.8);
     --skugga-lyft:0 3px 0 rgba(0,0,0,.45), 0 14px 26px -14px rgba(0,0,0,.9);
@@ -51,7 +41,7 @@
     font-family:var(--font-body); font-size:15px; line-height:1.55;
     background-image:
       radial-gradient(circle at 12% 8%, var(--accent-soft) 0 22px, transparent 23px),
-      radial-gradient(circle at 88% 4%, var(--lilac-soft) 0 16px, transparent 17px),
+      radial-gradient(circle at 88% 4%, var(--korall-soft) 0 16px, transparent 17px),
       radial-gradient(circle at 96% 42%, var(--mint-soft) 0 20px, transparent 21px),
       radial-gradient(circle at 4% 62%, var(--butter-soft) 0 18px, transparent 19px);
     background-attachment:fixed;
@@ -97,10 +87,10 @@
 
   /* ---- layout ---- */
   .layout { display:grid; grid-template-columns:minmax(300px,404px) 1fr; gap:26px; align-items:start; margin-top:22px; }
-  @media (max-width:940px) { .layout { grid-template-columns:1fr; gap:30px; } }
+  @media (max-width:940px) { .layout { grid-template-columns:minmax(0,1fr); gap:30px; } }
 
   .panel { background:var(--surface); border:2px solid var(--line); border-radius:24px;
-           padding:18px 18px 20px; box-shadow:var(--skugga); position:relative; }
+           padding:18px 18px 20px; box-shadow:var(--skugga); position:relative; min-width:0; }
   /* kattöron på veckopanelen */
   .panel.oron::before, .panel.oron::after {
     content:""; position:absolute; top:-16px; width:0; height:0;
@@ -143,7 +133,7 @@
   .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
   .search { flex:1 1 190px; min-width:0; display:flex; align-items:center; gap:8px; background:var(--sunken);
             border:2px solid transparent; border-radius:999px; padding:0 14px; }
-  .search input { flex:1; min-width:0; border:none; background:none; font:inherit; color:inherit; padding:9px 0; }
+  .search input { flex:1 1 0; width:0; min-width:0; border:none; background:none; font:inherit; color:inherit; padding:9px 0; }
   .search input:focus { outline:none; }
   .search:focus-within { border-color:var(--accent); background:var(--surface); }
   .search .lupp { width:17px; height:17px; flex:0 0 auto; }
@@ -186,7 +176,7 @@
   .tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--sunken); color:var(--muted); white-space:nowrap; }
   .tag-veg { background:var(--mint-soft); color:var(--mint); }
   .tag-time { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;
-              background:var(--lilac-soft); color:var(--lilac); font-variant-numeric:tabular-nums; }
+              background:var(--korall-soft); color:var(--korall); font-variant-numeric:tabular-nums; }
   .tag-planned { background:var(--butter-soft); color:var(--butter); }
   a.recipe { color:var(--accent-deep); font-size:12.5px; font-weight:700; text-decoration:none; }
   a.recipe:hover { text-decoration:underline; }
@@ -237,20 +227,20 @@
   <header class="topbar">
     <div class="brand">
       <svg class="maskot" viewBox="0 0 64 64" role="img" aria-label="Middagsbankens kock­katt">
-        <path d="M20 21c-5 0-8-4-6-8s6-4 8-6 6-3 10-3 8 1 10 3 6 2 8 6-1 8-6 8z" fill="#FFF7FA" stroke="#F3B9CE" stroke-width="2" stroke-linejoin="round"/>
-        <rect x="18.5" y="19.5" width="27" height="6.5" rx="3.2" fill="#FFE4EC" stroke="#F3B9CE" stroke-width="2"/>
-        <path d="M16.5 32.5l1.5-9.5 9.5 5.5z" fill="#FF8FB1"/>
-        <path d="M47.5 32.5l-1.5-9.5-9.5 5.5z" fill="#FF8FB1"/>
-        <path d="M19 31l1-5.5 5.5 3.2z" fill="#FFC2D6"/>
-        <path d="M45 31l-1-5.5-5.5 3.2z" fill="#FFC2D6"/>
-        <ellipse cx="32" cy="41" rx="18" ry="14.5" fill="#FFB8CF"/>
+        <path d="M20 21c-5 0-8-4-6-8s6-4 8-6 6-3 10-3 8 1 10 3 6 2 8 6-1 8-6 8z" fill="#FFF7FA" stroke="#BADDF5" stroke-width="2" stroke-linejoin="round"/>
+        <rect x="18.5" y="19.5" width="27" height="6.5" rx="3.2" fill="#E7F3FD" stroke="#BADDF5" stroke-width="2"/>
+        <path d="M16.5 32.5l1.5-9.5 9.5 5.5z" fill="#6FC0F0"/>
+        <path d="M47.5 32.5l-1.5-9.5-9.5 5.5z" fill="#6FC0F0"/>
+        <path d="M19 31l1-5.5 5.5 3.2z" fill="#C9E8FB"/>
+        <path d="M45 31l-1-5.5-5.5 3.2z" fill="#C9E8FB"/>
+        <ellipse cx="32" cy="41" rx="18" ry="14.5" fill="#A9DBF6"/>
         <ellipse cx="25.5" cy="39" rx="2.3" ry="2.9" fill="#4A3340"/>
         <ellipse cx="38.5" cy="39" rx="2.3" ry="2.9" fill="#4A3340"/>
         <ellipse cx="18.5" cy="44" rx="3.4" ry="2.3" fill="#FF5F92" opacity=".45"/>
         <ellipse cx="45.5" cy="44" rx="3.4" ry="2.3" fill="#FF5F92" opacity=".45"/>
-        <path d="M30.2 44.5h3.6L32 46.8z" fill="#E0507F"/>
+        <path d="M30.2 44.5h3.6L32 46.8z" fill="#E2739A"/>
         <path d="M28 47.5q2 2.6 4 0 2 2.6 4 0" fill="none" stroke="#4A3340" stroke-width="1.7" stroke-linecap="round"/>
-        <path d="M11 39.5h6M11 44.5h6M47 39.5h6M47 44.5h6" stroke="#F3B9CE" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M11 39.5h6M11 44.5h6M47 39.5h6M47 44.5h6" stroke="#BADDF5" stroke-width="1.7" stroke-linecap="round"/>
       </svg>
       <div>
         <h1>Middagsbanken</h1>
@@ -455,7 +445,7 @@
    * minspelet — kommer ur ett hashvärde av namnet. Två pastarätter blir
    * alltså igenkännbart pasta, men ser ändå olika ut.
    */
-  var PASTELL = ["#FFB3C7", "#8FD6C7", "#FFD98A", "#C4B5F5", "#9CC9F0", "#FFBFA3"];
+  var PASTELL = ["#9CC9F0", "#8FD6C7", "#FFD98A", "#B7C6F2", "#FFB3C7", "#FFBFA3"];
   var MORK = "#4A3340";
 
   function hashAv(s) {
@@ -623,7 +613,7 @@
     },
     grot: function (c, f) {
       return skal(c, "<ellipse cx='24' cy='22' rx='13.5' ry='8' fill='#FFF3E0'/>"
-        + "<circle cx='30' cy='18.5' r='3.4' fill='#E0507F'/><path d='M30 15v-2' stroke='#6BBE80' stroke-width='1.4' stroke-linecap='round'/>"
+        + "<circle cx='30' cy='18.5' r='3.4' fill='#E2739A'/><path d='M30 15v-2' stroke='#6BBE80' stroke-width='1.4' stroke-linecap='round'/>"
         + ansikte(21, 22, f, true));
     },
     sushi: function (c, f) {
@@ -979,11 +969,11 @@
     var list = visible();
     if (!list.length) {
       var katt = "<svg class='stor-katt' viewBox='0 0 64 64' aria-hidden='true'>"
-        + "<path d='M16.5 32.5l1.5-9.5 9.5 5.5z' fill='#FF8FB1'/><path d='M47.5 32.5l-1.5-9.5-9.5 5.5z' fill='#FF8FB1'/>"
-        + "<ellipse cx='32' cy='41' rx='18' ry='14.5' fill='#FFB8CF'/>"
+        + "<path d='M16.5 32.5l1.5-9.5 9.5 5.5z' fill='#6FC0F0'/><path d='M47.5 32.5l-1.5-9.5-9.5 5.5z' fill='#6FC0F0'/>"
+        + "<ellipse cx='32' cy='41' rx='18' ry='14.5' fill='#A9DBF6'/>"
         + "<path d='M22 38.5q3.5-3 7 0M35 38.5q3.5-3 7 0' fill='none' stroke='#4A3340' stroke-width='2.2' stroke-linecap='round'/>"
         + "<ellipse cx='18.5' cy='44' rx='3.4' ry='2.3' fill='#FF5F92' opacity='.45'/><ellipse cx='45.5' cy='44' rx='3.4' ry='2.3' fill='#FF5F92' opacity='.45'/>"
-        + "<path d='M30.2 44.5h3.6L32 46.8z' fill='#E0507F'/>"
+        + "<path d='M30.2 44.5h3.6L32 46.8z' fill='#E2739A'/>"
         + "<path d='M29 49q3 -2.6 6 0' fill='none' stroke='#4A3340' stroke-width='1.8' stroke-linecap='round'/></svg>";
       box.append(el("p", { class: "empty-state" }, svgNod(katt),
         el("span", { text: state.meals.length ? "Ingen middag matchar sökningen. Prova ett annat ord!" : "Inga middagsförslag ännu. Lägg till det första!" })));
