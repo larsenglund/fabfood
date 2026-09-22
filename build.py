@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Bygger index.html för GitHub Pages från src/app.html.
 
-src/app.html är sidan som den publiceras som Claude Artifact: ingen
-<!doctype>, <html>, <head> eller <body> — den skalen lägger Claude på vid
-publicering. För en vanlig webbserver behövs ett komplett dokument, och det
-är vad den här filen sätter ihop.
+src/app.html innehåller sidans titel, stil, markup och skript, men inget
+<!doctype>, <html>, <head> eller <body>. Den här filen lägger på det skalet
+och skriver resultatet till index.html, som är det Pages serverar.
+
+Uppdelningen kommer från att sidan en gång också publicerades som en Claude
+Artifact, där skalet lades på automatiskt. Den versionen är borttagen, så
+uppdelningen fyller numera bara funktionen att hålla den byggda filen skild
+från källan. Vill man förenkla går det att flytta skalet in i src/app.html,
+döpa om den till index.html och ta bort den här filen och byggsteget i
+.github/workflows/pages.yml.
 """
 import pathlib
 
