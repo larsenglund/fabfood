@@ -1,34 +1,35 @@
 rules_version = '2';
 
 // Sidan har ingen inloggning: den som kan öppna den får läsa och skriva.
-// Reglerna begränsar därför inte VEM, utan VAD — bara de två samlingarna
-// och bara dokument som faktiskt ser ut som en middag eller en vecka.
-// Det stoppar inte någon som är ute efter att förstöra, men det hindrar
-// att databasen används till något helt annat.
+// Reglerna begränsar därför inte VEM, utan VAD — bara de två samlingarna,
+// och bara dokument som håller sig till formen.
+//
+// Kända fält kontrolleras när de finns, men okända fält tillåts upp till
+// takets antal nycklar. Det gör att nya funktioner (som betyget) kan läggas
+// till utan att reglerna behöver publiceras om.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function giltigMiddag(d) {
-      return d.keys().hasOnly(['namn', 'tid', 'veg', 'lank', 'anteckning', 'kalla', 'taggar', 'nr', 'skapad', 'betyg'])
+      return d.keys().size() <= 25
         && d.namn is string && d.namn.size() > 0 && d.namn.size() <= 200
-        && (d.tid == null || d.tid is number)
-        && d.veg is bool
-        && d.lank is string && d.lank.size() <= 500
-        && d.anteckning is string && d.anteckning.size() <= 1000
-        && d.kalla is string && d.kalla.size() <= 200
-        && d.taggar is list && d.taggar.size() <= 10
-        && (d.nr == null || d.nr is number)
-        && d.skapad is string && d.skapad.size() <= 40
-        // Betyg är frivilligt: saknas det, är null, eller ett heltal 1-5.
+        && (!d.keys().hasAny(['tid']) || d.tid == null || d.tid is number)
+        && (!d.keys().hasAny(['veg']) || d.veg is bool)
+        && (!d.keys().hasAny(['lank']) || (d.lank is string && d.lank.size() <= 500))
+        && (!d.keys().hasAny(['anteckning']) || (d.anteckning is string && d.anteckning.size() <= 1000))
+        && (!d.keys().hasAny(['kalla']) || (d.kalla is string && d.kalla.size() <= 200))
+        && (!d.keys().hasAny(['taggar']) || (d.taggar is list && d.taggar.size() <= 10))
+        && (!d.keys().hasAny(['nr']) || d.nr == null || d.nr is number)
+        && (!d.keys().hasAny(['skapad']) || (d.skapad is string && d.skapad.size() <= 40))
         && (!d.keys().hasAny(['betyg']) || d.betyg == null
             || (d.betyg is int && d.betyg >= 1 && d.betyg <= 5));
     }
 
     function giltigVecka(d) {
-      return d.keys().hasOnly(['vecka', 'dagar', 'uppdaterad'])
-        && d.vecka is string && d.vecka.size() <= 12
-        && d.dagar is map && d.dagar.size() <= 7
-        && d.uppdaterad is string && d.uppdaterad.size() <= 40;
+      return d.keys().size() <= 12
+        && (!d.keys().hasAny(['vecka']) || (d.vecka is string && d.vecka.size() <= 12))
+        && (!d.keys().hasAny(['dagar']) || (d.dagar is map && d.dagar.size() <= 7))
+        && (!d.keys().hasAny(['uppdaterad']) || (d.uppdaterad is string && d.uppdaterad.size() <= 40));
     }
 
     // Ett middagsförslag

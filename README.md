@@ -115,7 +115,9 @@ En tom vecka tas bort helt.
 ## Att känna till
 
 Sidan har ingen inloggning, så reglerna begränsar inte vem som skriver utan vad som skrivs:
-bara de två samlingarna, och bara dokument som ser ut som en middag eller en vecka. Det
+bara de två samlingarna, och bara dokument som håller sig till formen. Kända fält kontrolleras
+när de finns, medan okända fält tillåts upp till 25 nycklar — det gör att nya funktioner kan
+läggas till utan att reglerna behöver publiceras om i konsolen. Det
 hindrar att databasen används till något annat, men den som hittar sidan kan ändra
 middagslistan. För en familjs middagar är det rimligt. Behövs mer går det att slå på anonym
 inloggning i Firebase och kräva `request.auth != null` i reglerna — det stoppar automatiserat
