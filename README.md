@@ -43,7 +43,8 @@ Vad som får läsas och skrivas bestäms av `firestore.rules`.
 1. **Skapa databasen.** Firebase-konsolen → projektet `fabfood` → vänsterpanelen
    **Databases & Storage → Firestore** → **Create database** → välj plats (`eur3` eller
    `europe-north1`) → **Test mode** → **Create**.
-2. **Lägg in reglerna.** Fliken **Rules** → klistra in hela `firestore.rules` → **Publish**.
+2. **Lägg in reglerna.** Klistra in hela `firestore.rules` → **Publish**. Regelsidan ligger på
+   https://console.firebase.google.com/u/0/project/fabfood-794ec/firestore/databases/-default-/security/rules
    Viktigt: test mode slutar gälla efter 30 dagar, reglerna i filen gäller tills vidare.
 3. **Fyll på med middagarna.** `python3 scripts/seed_firestore.py`
 
