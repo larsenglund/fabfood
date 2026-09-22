@@ -28,9 +28,7 @@ Vad som får läsas och skrivas bestäms av `firestore.rules`.
 
 | Fil | Vad |
 | --- | --- |
-| `src/app.html` | Sidan — markup, stil och logik i en fil, inga beroenden utöver Google Fonts. Källan att redigera. |
-| `index.html` | Byggd av `build.py`. Det är den här filen GitHub Pages serverar. |
-| `build.py` | Bygger `index.html`. Kör `python3 build.py` efter varje ändring i `src/app.html`. |
+| `index.html` | Hela sidan — markup, stil och logik i en fil, inga beroenden utöver Google Fonts och Firebase-SDK:n. Det är den här filen du redigerar och den GitHub Pages serverar. |
 | `firestore.rules` | Säkerhetsreglerna: vilka samlingar som finns och hur ett giltigt dokument ser ut. |
 | `firebase.json` | Pekar ut reglerna, och portar för den lokala emulatorn. |
 | `scripts/seed_firestore.py` | Lägger in de 76 middagarna i en ny databas. Körs en gång. |
@@ -126,6 +124,8 @@ klotter utan att någon behöver logga in.
 
 ## Uppdatera sidan
 
-1. Ändra `src/app.html`
-2. Kör `python3 build.py`
-3. Commit och push — GitHub Pages byggs om automatiskt
+1. Ändra `index.html`
+2. Commit och push — GitHub Pages publicerar om automatiskt
+
+Det finns inget byggsteg. Filen som ligger i repot är filen som serveras, så det går
+att öppna den direkt i en webbläsare för att prova en ändring.

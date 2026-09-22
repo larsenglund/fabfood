@@ -23,9 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bygg index.html från src/app.html
-        run: python3 build.py
-
       - name: Ställ i ordning det som ska publiceras
         run: |
           mkdir -p _site
