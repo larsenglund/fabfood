@@ -77,6 +77,12 @@ taggar som härletts ur kolumnen *Källa* i det ursprungliga kalkylbladet.
 **Nytt förslag** lägger in en middag med namn, tid, veg, receptlänk och anteckning. *Ändra* på
 ett kort öppnar samma formulär för att redigera eller ta bort.
 
+**Betyg.** Varje middag har fem stjärnor. Klicka på en stjärna för att sätta betyget, klicka på
+samma stjärna igen för att ta bort det. Betyget sparas direkt och delas av alla — det finns
+ingen inloggning, så det är hushållets gemensamma omdöme, inte ett betyg per person. Betyget
+går också att sätta i formuläret, syns i veckovyn, går att sortera på och har ett eget filter
+för favoriter med fyra eller fem stjärnor.
+
 ## Datamodell
 
 Två samlingar.
@@ -94,6 +100,7 @@ Två samlingar.
 | `taggar` | lista | max 10 |
 | `nr` | tal eller null | ordningsnummer i det ursprungliga kalkylbladet |
 | `skapad` | sträng | ISO-tid |
+| `betyg` | heltal 1–5 eller null | saknas på middagar som aldrig betygsatts |
 
 **`veckor/{år}-v{vecka}`** — en veckas matsedel, t.ex. `veckor/2026-v38`:
 

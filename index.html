@@ -192,6 +192,18 @@
   .tag-time { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px;
               background:var(--korall-soft); color:var(--korall); font-variant-numeric:tabular-nums; }
   .tag-planned { background:var(--butter-soft); color:var(--butter); }
+  .tag-betyg { background:var(--butter-soft); color:var(--butter); font-variant-numeric:tabular-nums; }
+
+  .betyg { display:flex; align-items:center; gap:2px; }
+  .betyg .stjarna { padding:1px; line-height:0; color:var(--line); border-radius:7px;
+                    transition:transform .12s, color .12s; }
+  .betyg .stjarna.pa { color:var(--butter); }
+  .betyg .stjarna:hover { transform:scale(1.2); color:var(--butter); }
+  .betyg .stj { width:16px; height:16px; display:block; }
+  .betyg.stor { gap:4px; }
+  .betyg.stor .stjarna { padding:2px; }
+  .betyg.stor .stj { width:27px; height:27px; }
+  .betyg-txt { font-size:11.5px; font-weight:700; color:var(--butter); margin-left:5px; font-variant-numeric:tabular-nums; }
   a.recipe { color:var(--accent-deep); font-size:12.5px; font-weight:700; text-decoration:none; }
   a.recipe:hover { text-decoration:underline; }
 
@@ -301,6 +313,7 @@
         <select class="sel" id="sort" aria-label="Sortering">
           <option value="namn">Namn A–Ö</option>
           <option value="tid">Kortast tid</option>
+          <option value="betyg">Högst betyg</option>
           <option value="ny">Senast tillagda</option>
         </select>
       </div>
@@ -332,6 +345,10 @@
           <label for="f-veg">Vegetariskt</label>
           <span class="check"><input type="checkbox" id="f-veg"><label for="f-veg" style="font-weight:500;font-size:14px;color:var(--ink);letter-spacing:0">Ja, veg</label></span>
         </div>
+      </div>
+      <div class="field">
+        <label id="f-betyg-label">Betyg</label>
+        <div id="f-betyg"></div>
       </div>
       <div class="field">
         <label for="f-lank">Receptlänk</label>
@@ -421,6 +438,51 @@
     + "<circle cx='5.2' cy='9.5' r='2.7' fill='currentColor'/><circle cx='10' cy='6' r='2.7' fill='currentColor'/>"
     + "<circle cx='15.2' cy='6.4' r='2.7' fill='currentColor'/><circle cx='19.4' cy='10.4' r='2.5' fill='currentColor'/></svg>";
 
+  /* ---------- betyg ---------- */
+  function stjarna(fylld) {
+    return "<svg class='stj' viewBox='0 0 24 24' aria-hidden='true'>"
+      + "<path d='M12 3.6l2.55 5.5 5.95.78-4.35 4.15 1.1 5.92L12 17.05 6.75 19.95l1.1-5.92L3.5 9.88l5.95-.78z' fill='"
+      + (fylld ? "currentColor" : "none") + "' stroke='currentColor' stroke-width='1.9' stroke-linejoin='round'/></svg>";
+  }
+
+  /**
+   * Fem stjärnor. Klick på en stjärna sätter betyget, klick på samma
+   * stjärna igen tar bort det. `vidVal` gör raden lokal — utan den sparas
+   * betyget direkt till databasen.
+   */
+  function betygsrad(m, stor, vidVal) {
+    var nu = m.betyg || 0;
+    var rad = el("div", {
+      class: "betyg" + (stor ? " stor" : ""), role: "group",
+      "aria-label": "Betyg för " + m.namn + ": " + (nu ? nu + " av 5" : "inget betyg än")
+    });
+    for (var n = 1; n <= 5; n++) {
+      (function (n) {
+        var aktiv = nu >= n;
+        rad.append(el("button", {
+          type: "button", class: "stjarna" + (aktiv ? " pa" : ""),
+          "aria-label": nu === n ? "Ta bort betyget" : "Sätt betyg " + n + " av 5",
+          title: nu === n ? "Ta bort betyget" : "Sätt betyg " + n + " av 5",
+          "aria-pressed": aktiv ? "true" : "false",
+          onclick: function (e) {
+            e.stopPropagation();
+            var nytt = (nu === n) ? null : n;
+            if (vidVal) vidVal(nytt); else sattBetyg(m, nytt);
+          }
+        }, svgNod(stjarna(aktiv))));
+      })(n);
+    }
+    if (stor) rad.append(el("span", { class: "betyg-txt", text: nu ? nu + " av 5" : "" }));
+    return rad;
+  }
+
+  function sattBetyg(m, n) {
+    if (!state.store) return;
+    state.store.setMeal(m.id, kropp(Object.assign({}, m, { betyg: n })))
+      .then(function () { toast(n ? m.namn + ": " + n + " av 5" : "Betyget borttaget."); })
+      .catch(function () { toast("Kunde inte spara betyget — är firestore.rules uppdaterad?"); });
+  }
+
   function safeUrl(u) { return typeof u === "string" && /^https?:\/\//i.test(u.trim()) ? u.trim() : ""; }
   function fold(s) { return (s || "").toString().toLowerCase(); }
   function nyttId() { return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -430,12 +492,14 @@
       id: id, namn: v.namn || "(namnlös)", tid: typeof v.tid === "number" ? v.tid : null,
       veg: !!v.veg, lank: v.lank || "", anteckning: v.anteckning || "",
       kalla: v.kalla || "", taggar: Array.isArray(v.taggar) ? v.taggar : [],
-      skapad: v.skapad || "", nr: v.nr || null
+      skapad: v.skapad || "", nr: v.nr || null,
+      betyg: (typeof v.betyg === "number" && v.betyg >= 1 && v.betyg <= 5) ? Math.round(v.betyg) : null
     };
   }
   function kropp(m) {
     return { namn: m.namn, tid: m.tid, veg: m.veg, lank: m.lank, anteckning: m.anteckning,
-             kalla: m.kalla, taggar: m.taggar, nr: m.nr, skapad: m.skapad };
+             kalla: m.kalla, taggar: m.taggar, nr: m.nr, skapad: m.skapad,
+             betyg: m.betyg === undefined ? null : m.betyg };
   }
 
   /* ---------- veckologik ---------- */
@@ -884,6 +948,7 @@
           var meta = [];
           if (meal.tid) meta.push(el("span", { class: "tag-time", text: meal.tid + " min" }));
           if (meal.veg) meta.push(el("span", { class: "tag tag-veg", text: "Veg" }));
+          if (meal.betyg) meta.push(el("span", { class: "tag tag-betyg", text: "★ " + meal.betyg }));
           var url = safeUrl(meal.lank);
           if (url) meta.push(el("a", { class: "recipe", href: url, target: "_blank", rel: "noopener noreferrer", text: "Recept" }));
 
@@ -931,7 +996,8 @@
     { id: "alla", namn: "Alla" },
     { id: "veg", namn: "Vegetariskt" },
     { id: "snabb", namn: "Under 45 min" },
-    { id: "recept", namn: "Har recept" }
+    { id: "recept", namn: "Har recept" },
+    { id: "topp", namn: "Favoriter ★4+" }
   ];
 
   function renderChips() {
@@ -950,6 +1016,7 @@
       if (state.filter === "veg" && !m.veg) return false;
       if (state.filter === "snabb" && !(m.tid && m.tid < 45)) return false;
       if (state.filter === "recept" && !safeUrl(m.lank)) return false;
+      if (state.filter === "topp" && !(m.betyg && m.betyg >= 4)) return false;
       if (state.filter.slice(0, 4) === "tag:" && (m.taggar || []).indexOf(state.filter.slice(4)) === -1) return false;
       if (q && fold(m.namn + " " + (m.anteckning || "") + " " + (m.taggar || []).join(" ")).indexOf(q) === -1) return false;
       return true;
@@ -958,6 +1025,9 @@
       if (state.sort === "tid") {
         var ta = a.tid || 9999, tb = b.tid || 9999;
         if (ta !== tb) return ta - tb;
+      } else if (state.sort === "betyg") {
+        var ba = a.betyg || 0, bb = b.betyg || 0;
+        if (ba !== bb) return bb - ba;
       } else if (state.sort === "ny") {
         var sa = a.skapad || "", sb = b.skapad || "";
         if (sa !== sb) return sa < sb ? 1 : -1;
@@ -1012,6 +1082,7 @@
           )
         ),
         meta.length ? el("div", { class: "card-meta" }, meta) : null,
+        betygsrad(m),
         el("div", { class: "card-foot" },
           url ? el("a", { class: "recipe", href: url, target: "_blank", rel: "noopener noreferrer", text: "Recept ↗" }) : null,
           el("button", { class: "btn btn-quiet", type: "button", "aria-label": "Ändra " + m.namn, onclick: function (e) { e.stopPropagation(); openMealForm(m); } }, "Ändra"),
@@ -1038,7 +1109,9 @@
     if (!state.meals) return;
     var veg = state.meals.filter(function (m) { return m.veg; }).length;
     var rec = state.meals.filter(function (m) { return safeUrl(m.lank); }).length;
-    $("stat").textContent = state.meals.length + " förslag · " + veg + " vegetariska · " + rec + " med recept";
+    var bet = state.meals.filter(function (m) { return m.betyg; }).length;
+    $("stat").textContent = state.meals.length + " förslag · " + veg + " vegetariska · " + rec + " med recept"
+      + (bet ? " · " + bet + " betygsatta" : "");
   }
 
   /* ---------- dagväljare ---------- */
@@ -1067,7 +1140,14 @@
   $("day-cancel").addEventListener("click", function () { dayDlg.close(); });
 
   /* ---------- formulär ---------- */
-  var mealDlg = $("meal-dialog"), editing = null;
+  var mealDlg = $("meal-dialog"), editing = null, formBetyg = null;
+  function ritaFormBetyg() {
+    var ruta = $("f-betyg");
+    ruta.textContent = "";
+    ruta.append(betygsrad({ namn: $("f-namn").value || "middagen", betyg: formBetyg }, true, function (n) {
+      formBetyg = n; ritaFormBetyg();
+    }));
+  }
   function openMealForm(m) {
     editing = m || null;
     $("meal-dlg-title").textContent = m ? "Redigera middag" : "Nytt middagsförslag";
@@ -1076,6 +1156,8 @@
     $("f-veg").checked = !!(m && m.veg);
     $("f-lank").value = m ? (m.lank || "") : "";
     $("f-ant").value = m ? (m.anteckning || "") : "";
+    formBetyg = m ? (m.betyg || null) : null;
+    ritaFormBetyg();
     $("f-err").hidden = true;
     $("f-delete").hidden = !m;
     mealDlg.showModal();
@@ -1100,7 +1182,8 @@
       kalla: editing ? (editing.kalla || "Tillagd i appen") : "Tillagd i appen",
       taggar: editing ? (editing.taggar || []) : ["Eget tillägg"],
       nr: editing ? (editing.nr || null) : null,
-      skapad: editing ? (editing.skapad || new Date().toISOString()) : new Date().toISOString()
+      skapad: editing ? (editing.skapad || new Date().toISOString()) : new Date().toISOString(),
+      betyg: formBetyg
     };
     var var_editing = editing;
     mealDlg.close();
