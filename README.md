@@ -66,7 +66,13 @@ det riktiga projektet.
 
 **Veckomatsedeln** till vänster visar vald vecka med ISO-veckonummer och datum. Klicka på en
 tom dag för att sikta den och välj sedan en middag i listan, eller tryck *Planera* på ett kort
-och peka ut dagen. `Slumpa resten` fyller tomma dagar, `Förra veckan` hämtar hem föregående
+och peka ut dagen.
+
+**Ändra ordning** genom att dra i greppet till vänster om en dag. Veckan behandlas som en lista
+med sju platser, så de andra dagarna knuffas ett steg och även tomma platser följer med — drar
+man fredagens middag överst hamnar den på måndag och resten skjuts ned. Fungerar med mus och
+på pekskärm, och för den som hellre använder tangentbordet flyttar piltangenterna upp och ned
+när greppet har fokus. `Slumpa resten` fyller tomma dagar, `Förra veckan` hämtar hem föregående
 veckas matsedel och `Kopiera text` lägger matsedeln i urklipp. Pilarna bläddrar mellan veckor.
 
 **Middagsförslagen** till höger har fritextsök på namn, anteckning och tagg, sortering på namn,

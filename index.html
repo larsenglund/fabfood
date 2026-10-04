@@ -120,8 +120,8 @@
 
   /* ---- veckan ---- */
   .week-tools { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
-  .days { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
-  .day { display:grid; grid-template-columns:66px 1fr; gap:10px; align-items:center;
+  .days { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; position:relative; }
+  .day { display:grid; grid-template-columns:20px 60px 1fr; gap:8px; align-items:center;
          background:var(--sunken); border:2px solid transparent; border-radius:var(--r);
          padding:9px 12px; transition:border-color .14s, background .14s, transform .14s; }
   .day.is-empty { background:transparent; border-style:dashed; border-color:var(--line); }
@@ -142,6 +142,21 @@
   .slot-empty .tass { width:19px; height:19px; flex:0 0 auto; opacity:.65; }
   .slot-empty:hover .tass { opacity:1; }
   .slot-gone { color:var(--danger); font-size:13px; font-weight:600; }
+
+  /* dra för att ändra ordning */
+  .day-handtag { display:grid; place-items:center; width:20px; height:32px; padding:0;
+                 color:var(--faint); border-radius:7px; cursor:grab; touch-action:none;
+                 transition:color .12s, background .12s; }
+  .day-handtag:hover { color:var(--accent-deep); background:var(--sunken); }
+  .day-handtag svg { width:12px; height:18px; display:block; fill:currentColor; }
+  .day.drar-nu { z-index:5; border-color:var(--accent); background:var(--surface);
+                 box-shadow:var(--skugga-lyft); cursor:grabbing; }
+  .day.drar-nu .day-handtag { cursor:grabbing; color:var(--accent-deep); }
+  body.drar { user-select:none; -webkit-user-select:none; }
+  .slappmarke { position:absolute; left:2px; right:2px; height:4px; border-radius:3px;
+                background:var(--accent); pointer-events:none; display:none; z-index:6;
+                box-shadow:0 0 0 3px var(--accent-soft); }
+  .slappmarke.pa { display:block; }
 
   /* ---- biblioteket ---- */
   .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
@@ -391,7 +406,7 @@
   var DAGAR = ["Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag","Söndag"];
   var state = {
     store: null, meals: null, plan: {}, weekStart: mondayOf(new Date()),
-    armed: null, q: "", filter: "alla", sort: "namn", tags: []
+    armed: null, q: "", filter: "alla", sort: "namn", tags: [], fokusDag: null
   };
   var unsubPlan = null;
 
@@ -914,6 +929,10 @@
   }
 
   function renderWeek() {
+    // Mitt i ett drag byts raden under fingret ut om vi ritar om, och draget
+    // dör tyst. Databasen kan skicka en uppdatering när som helst, så vi
+    // skjuter upp omritningen tills draget är klart.
+    if (drag) { drag.ritaOm = true; return; }
     renderWeekNav();
     var ol = $("days"); ol.textContent = "";
     var today = ymd(new Date()), planned = 0;
@@ -926,6 +945,16 @@
         if (id) planned++;
 
         var cls = "day" + (!id ? " is-empty" : "") + (ymd(date) === today ? " is-today" : "") + (state.armed === i ? " is-armed" : "");
+        var handtag = el("button", {
+          class: "day-handtag", type: "button",
+          title: "Dra för att flytta, eller använd piltangenterna upp och ned",
+          "aria-label": "Flytta " + DAGAR[i].toLowerCase() + ". Använd piltangenterna upp och ned.",
+          onkeydown: function (e) {
+            if (e.key === "ArrowUp") { e.preventDefault(); flyttaDag(i, i - 1, true); }
+            else if (e.key === "ArrowDown") { e.preventDefault(); flyttaDag(i, i + 1, true); }
+          }
+        }, svgNod(GREPP));
+
         var head = el("div", {},
           el("span", { class: "day-name", text: DAGAR[i] }),
           el("span", { class: "day-date", text: fmtDay.format(date) })
@@ -966,14 +995,120 @@
             )
           );
         }
-        ol.append(el("li", { class: cls }, head, body));
+        var rad = el("li", { class: cls }, handtag, head, body);
+        kopplaDrag(handtag, rad, i);
+        ol.append(rad);
       })(i);
+    }
+
+    ol.append(slappmarke);
+
+    // Flytta bara fokus om användaren inte hunnit ta sig någon annanstans.
+    if (state.fokusDag !== null && state.fokusDag !== undefined) {
+      var aktiv = document.activeElement;
+      if (!aktiv || aktiv === document.body || aktiv.classList.contains("day-handtag")) {
+        var h = ol.children[state.fokusDag];
+        if (h && h.firstElementChild) h.firstElementChild.focus();
+      }
     }
 
     $("week-hint").textContent = planned === 7 ? "Hela veckan klar!" : planned + " av 7 dagar";
     $("clear-week").disabled = planned === 0;
     $("fill-rest").disabled = planned === 7 || !state.meals || !state.meals.length;
     $("share-week").disabled = planned === 0;
+  }
+
+  /* ---------- dra dagar för att ändra ordning ---------- */
+  var GREPP = "<svg viewBox='0 0 10 18' aria-hidden='true'>"
+    + "<circle cx='2.6' cy='3.5' r='1.5'/><circle cx='7.4' cy='3.5' r='1.5'/>"
+    + "<circle cx='2.6' cy='9' r='1.5'/><circle cx='7.4' cy='9' r='1.5'/>"
+    + "<circle cx='2.6' cy='14.5' r='1.5'/><circle cx='7.4' cy='14.5' r='1.5'/></svg>";
+
+  var slappmarke = el("div", { class: "slappmarke", "aria-hidden": "true" });
+  var drag = null, fokusTimer = null;
+
+  /**
+   * Flyttar en dag till en ny plats i veckan och knuffar de andra ett steg.
+   * Veckan behandlas som en lista med sju platser, så även tomma dagar
+   * följer med — det är det som gör att ordningen känns förutsägbar.
+   */
+  function flyttaDag(fran, till, fokusera) {
+    if (till < 0 || till > 6 || fran === till) return;
+    var lista = [];
+    for (var i = 0; i < 7; i++) lista.push(state.plan[String(i)] || null);
+    lista.splice(till, 0, lista.splice(fran, 1)[0]);
+    var dagar = {};
+    for (var j = 0; j < 7; j++) if (lista[j]) dagar[String(j)] = lista[j];
+    if (fokusera) {
+      state.fokusDag = till;
+      clearTimeout(fokusTimer);
+      fokusTimer = setTimeout(function () { state.fokusDag = null; }, 600);
+    }
+    savePlan(dagar);
+  }
+
+  /** Var hamnar raden om man släpper nu? Räknar hur många av de andra
+   *  radernas mittpunkter som ligger ovanför den dragna radens mitt. */
+  function malIndex(mitt) {
+    var k = 0;
+    for (var j = 0; j < 7; j++) {
+      if (j !== drag.i && drag.matt[j].mitt < mitt) k++;
+    }
+    return k;
+  }
+
+  function ritaSlappmarke(mal) {
+    var kvar = drag.matt.filter(function (_, j) { return j !== drag.i; });
+    // Märket ska ligga i mellanrummet mellan raderna, inte ovanpå någon av dem.
+    var y = mal === 0
+      ? kvar[0].topp - drag.olTopp - 6
+      : kvar[mal - 1].topp + kvar[mal - 1].hojd - drag.olTopp + 2;
+    slappmarke.style.top = y + "px";
+    slappmarke.classList.add("pa");
+  }
+
+  function avslutaDrag(genomfor) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    d.rad.style.transform = "";
+    d.rad.classList.remove("drar-nu");
+    document.body.classList.remove("drar");
+    slappmarke.classList.remove("pa");
+    if (genomfor && d.mal !== d.i) flyttaDag(d.i, d.mal, false);
+    else if (d.ritaOm) renderWeek();
+  }
+
+  function kopplaDrag(handtag, rad, i) {
+    handtag.addEventListener("pointerdown", function (e) {
+      if (e.button) return;
+      e.preventDefault();
+      var ol = $("days");
+      var matt = [].slice.call(ol.querySelectorAll("li")).map(function (r) {
+        var b = r.getBoundingClientRect();
+        return { topp: b.top, hojd: b.height, mitt: b.top + b.height / 2 };
+      });
+      if (matt.length !== 7) return;
+      drag = { i: i, rad: rad, matt: matt, mal: i, startY: e.clientY,
+               olTopp: ol.getBoundingClientRect().top };
+      rad.classList.add("drar-nu");
+      document.body.classList.add("drar");
+      ritaSlappmarke(i);
+      try { handtag.setPointerCapture(e.pointerId); } catch (fel) { /* äldre webbläsare */ }
+    });
+
+    handtag.addEventListener("pointermove", function (e) {
+      if (!drag || drag.rad !== rad) return;
+      e.preventDefault();
+      var dy = e.clientY - drag.startY;
+      rad.style.transform = "translateY(" + dy + "px) rotate(-0.6deg) scale(1.015)";
+      drag.mal = malIndex(drag.matt[drag.i].mitt + dy);
+      ritaSlappmarke(drag.mal);
+    });
+
+    handtag.addEventListener("pointerup", function () { avslutaDrag(true); });
+    handtag.addEventListener("pointercancel", function () { avslutaDrag(false); });
+    handtag.addEventListener("lostpointercapture", function () { avslutaDrag(true); });
   }
 
   function armDay(i) {
